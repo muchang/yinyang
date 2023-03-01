@@ -28,6 +28,7 @@ class Transformer:
     
     def trans(self):
         pass
-    
 
-    
+class CodeBlock:
+    def __init__(self, expression):
+        self.expression = expression
