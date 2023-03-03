@@ -150,6 +150,8 @@ class DafnyCodeBlock(CodeBlock):
                 self.decl_list.append("\nvar "+ term.var_binders[let_term_idx] + " := " + self.generate_expression(term.let_terms[let_term_idx]) + "; ")
             expression_text += self.generate_expression(term.subterms[0])+";"
         elif term.op == None:
+            if str.isdigit(str(term)) and '.' not in str(term):
+                return str(term)+".0"
             return str(term)
         else:
             raise Exception("Unknown operator: " + str(term.op))
@@ -178,7 +180,7 @@ class DafnyTransformer(Transformer):
     def generate_args(self):
         args_text = "("
         for var in self.free_variables:
-            print("%s: %s" % (str(var), str(self.free_variables[var])))
+            # print("%s: %s" % (str(var), str(self.free_variables[var])))
             smt_type = str(self.free_variables[var])
             dafny_type = trans_type(smt_type)
             args_text += str(var) + ": " + dafny_type + ", "
