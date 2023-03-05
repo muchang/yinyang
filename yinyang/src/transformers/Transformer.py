@@ -30,5 +30,6 @@ class Transformer:
         pass
 
 class CodeBlock:
-    def __init__(self, expression):
-        self.expression = expression
+    def __init__(self, tmpid):
+        self.tmpid = tmpid
+        self.identifier = "tmp" + str(self.tmpid)
