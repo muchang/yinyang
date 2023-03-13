@@ -14,7 +14,8 @@ fn3 = "/zdata/chengyu/dafny_testing/yinyang-dev-test/seed.smt2"
 fn4 = "/zdata/chengyu/dafny_testing/yinyang-dev-test/forall.smt2"
 fn5 = "/zdata/chengyu/dafny_testing/yinyang-dev-test/let.smt2"
 fn6 = "/home/zhangche/benchmark/SMTbenchmark/QF_LIA/unsat/FISCHER10-3-fair.smt2"
-formula = parse_file(fn5)
+fn7 = "/zdata/chengyu/dafny_testing/yinyang-dev-test/letor.smt2"
+formula = parse_file(fn7)
 transformer = DafnyTransformer(formula)
 with open("debug.dfy", "w") as f:
     f.write(transformer.generate_method())
