@@ -278,11 +278,11 @@ class DafnyXORBlock(DafnyCodeBlock):
         self.truth = truth
     
     def get_truth(self, negated=False):
-        if self.truth == True and negated == False:
-            truth = "true"
-        elif self.truth == False and negated == True:
+        if self.truth == True and negated == True:
             truth = "true"
         elif self.truth == False and negated == False:
+            truth = "true"
+        elif self.truth == False and negated == True:
             truth = "false"
         else:
             truth = "false"
