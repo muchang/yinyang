@@ -129,7 +129,11 @@ class DafnyCodeBlock(CodeBlock):
             expression_text = expression_text[:-3]+";"
             
         elif term.quantifier == FORALL:
-            raise Exception("Quantifier is not supported")
+            forallblock = DafnyForallBlock(self.tmpid, term, self.tmpid)
+            expression_text += forallblock.generate_block()
+            var_name = "tmp_" + str(forallblock.identifier)
+            self.tmpid = forallblock.tmpid
+            # raise Exception("Quantifier is not supported")
             # expression_text += "\nforall "
             # expression_text += str(term.quantified_vars[0][0]) + " : " + trans_type(str(term.quantified_vars[1][0])) + ", "
             # expression_text = expression_text[:-2] + " { "
@@ -139,7 +143,10 @@ class DafnyCodeBlock(CodeBlock):
             # expression_text = "\nvar tmp_" + str(self.tmpid-1) + " := true; " + expression_text
 
         elif term.quantifier == EXISTS:
-            raise Exception("Quantifier is not supported")
+            existsblock = DafnyExistsBlock(self.tmpid, term, self.tmpid)
+            expression_text += existsblock.generate_block()
+            var_name = "tmp_" + str(existsblock.identifier)
+            self.tmpid = existsblock.tmpid
             # expression_text += "\nforall "
             # expression_text += str(term.quantified_vars[0][0]) + " : " + trans_type(str(term.quantified_vars[1][0])) + ", "
             # expression_text = expression_text[:-2] + " { "
@@ -151,26 +158,26 @@ class DafnyCodeBlock(CodeBlock):
         elif term.let_terms != None:
             for let_term_idx in range(len(term.let_terms)):
                 DafnyCodeBlock(self.tmpid)
-                self.decl_list.append("\nvar "+ term.var_binders[let_term_idx] + " := " + self.generate_expression(term.let_terms[let_term_idx]) + "; ")
+                self.decl_list.append("\nvar "+ str(term.var_binders[let_term_idx]).replace("$","") + " := " + self.generate_expression(term.let_terms[let_term_idx]) + "; ")
             expression_text += self.generate_expression(term.subterms[0])+";"
         elif term.op == None:
             # force int to real conversion
             if str.isdigit(str(term)) and '.' not in str(term):
                 return str(term)+".0"
-            return str(term)
+            return str(term).replace("!", "").replace("$", "")
         else:
             raise Exception("Unknown operator: " + str(term.op))
         
     
-        if term.quantifier == FORALL:
-            self.decl_list.append(expression_text)
-            var_name = "tmp_" + str(self.tmpid-1)
-            return var_name
-        elif term.quantifier == EXISTS:
-            self.decl_list.append(expression_text)
-            var_name = "! tmp_" + str(self.tmpid-1)
-            return var_name
-        elif term.op == AND or term.op == OR or term.op == XOR:
+        # if term.quantifier == FORALL:
+        #     self.decl_list.append(expression_text)
+        #     var_name = "tmp_" + str(self.tmpid-1)
+        #     return var_name
+        # elif term.quantifier == EXISTS:
+        #     self.decl_list.append(expression_text)
+        #     var_name = "! tmp_" + str(self.tmpid-1)
+        #     return var_name
+        if term.op == AND or term.op == OR or term.op == XOR or term.quantifier == FORALL or term.quantifier == EXISTS:
             pass
         else:
             var_name = "tmp_" + str(self.tmpid)
@@ -317,6 +324,97 @@ class DafnyXORBlock(DafnyCodeBlock):
         body_text = decl_text + body_text
         return body_text
 
+class DafnyForallBlock(DafnyCodeBlock):
+
+    def __init__(self, tmpid, term, identifier):
+        super().__init__(tmpid)
+        self.term = term
+        self.identifier = identifier
+
+    def generate_block(self):
+
+        if self.identifier == self.tmpid:
+            decl_text = "\nvar tmp_" + str(self.identifier) + " := false;"
+            self.tmpid += 1
+        else:
+            decl_text = ""
+
+        body_text = ""
+        body_text += decl_text
+
+        tmpvar = "tmp_" + str(self.tmpid)
+        self.tmpid += 1
+        for i in range(0, len(self.term.quantified_vars[0])):
+            body_text += "\nfor "+ str(tmpvar) + " := -100 to 100 {"
+            if str(self.term.quantified_vars[1][i]) == "Real":
+                body_text += "\nvar " + str(self.term.quantified_vars[0][i]).replace("!","").replace("$","") + " := " + str(tmpvar) + " as real;" 
+            elif str(self.term.quantified_vars[1][i]) == "Int":
+                body_text += "\nvar " + str(self.term.quantified_vars[0][i]).replace("!","").replace("$","") + " := " + str(tmpvar) + ";"
+            elif str(self.term.quantified_vars[1][i]) == "Bool":
+                body_text += "\nvar " + str(self.term.quantified_vars[0][i]).replace("!","").replace("$","") + " := " + str(tmpvar) + "%2 == 0;"
+            else:
+                raise Exception("Unsupported type for quantifier")
+        
+
+
+        forallblock = DafnyCodeBlock(self.tmpid)
+        binding_result =  "tmp_" + str(self.identifier) + " := " +forallblock.generate_expression(self.term.subterms[0])+";"
+        decl_text = ""
+        for decl in forallblock.decl_list:
+            decl_text += decl
+        body_text += decl_text
+        body_text += binding_result
+        body_text += "\nif (! tmp_" + str(self.identifier) + ") { break; }"
+        for i in range(0, len(self.term.quantified_vars[0])):
+            body_text += "\n}\n"
+
+        self.tmpid = forallblock.tmpid
+        
+        return body_text
+        
+class DafnyExistsBlock(DafnyCodeBlock):
+
+    def __init__(self, tmpid, term, identifier):
+        super().__init__(tmpid)
+        self.term = term
+        self.identifier = identifier
+
+    def generate_block(self):
+
+        if self.identifier == self.tmpid:
+            decl_text = "\nvar tmp_" + str(self.identifier) + " := false;"
+            self.tmpid += 1
+        else:
+            decl_text = ""
+
+        body_text = ""
+        body_text += decl_text
+
+        tmpvar = "tmp_" + str(self.tmpid)
+        self.tmpid += 1
+        body_text += "\nfor "+ str(tmpvar) + " := -100 to 100 {"
+        if str(self.term.quantified_vars[1][0]) == "Real":
+            body_text += "\nvar " + str(self.term.quantified_vars[0][0]) + " := " + str(tmpvar) + " as real;" 
+        elif str(self.term.quantified_vars[1][0]) == "Int":
+           body_text += "\nvar " + str(self.term.quantified_vars[0][0]) + " := " + str(tmpvar) + ";" 
+        else:
+            raise Exception("Unsupported type for quantifier")
+        forallblock = DafnyCodeBlock(self.tmpid)
+        binding_result =  "tmp_" + str(self.identifier) + " := ! " + forallblock.generate_expression(self.term.subterms[0])+";"
+        decl_text = ""
+        for decl in forallblock.decl_list:
+            decl_text += decl
+        body_text += decl_text
+        body_text += binding_result
+        body_text += "\nif (! tmp_" + str(self.identifier) + ") { break; }"
+        body_text += "\n}\n"
+        body_text += "tmp_" + str(self.identifier) + " := " + "! " + "tmp_" + str(self.identifier) + ";\n"
+
+        self.tmpid = forallblock.tmpid
+        
+        return body_text
+        
+
 class DafnyTransformer(Transformer):
     def __init__(self, formula):
         super().__init__(formula)
@@ -348,9 +446,9 @@ class DafnyTransformer(Transformer):
             # codeblock = DafnyAssertBlock(assert_cmd.term, self.tmpid)
             # body_text += codeblock.generate_block()
             # self.tmpid = codeblock.tmpid
-        andblock = DafnyAssertBlock(Term(op="and", subterms=assert_cmd_terms), self.tmpid)
-        body_text += andblock.generate_block()
-        self.tmpid = andblock.tmpid
+        assertblock = DafnyAssertBlock(Term(op="and", subterms=assert_cmd_terms), self.tmpid)
+        body_text += assertblock.generate_block()
+        self.tmpid = assertblock.tmpid
         
         return body_text
 
