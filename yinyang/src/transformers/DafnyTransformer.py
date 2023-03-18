@@ -143,6 +143,7 @@ class DafnyCodeBlock(CodeBlock):
             # expression_text = "\nvar tmp_" + str(self.tmpid-1) + " := true; " + expression_text
 
         elif term.quantifier == EXISTS:
+            # raise  Exception("Quantifier Exists is not supported")
             existsblock = DafnyExistsBlock(self.tmpid, term, self.tmpid)
             expression_text += existsblock.generate_block()
             var_name = "tmp_" + str(existsblock.identifier)
@@ -158,13 +159,13 @@ class DafnyCodeBlock(CodeBlock):
         elif term.let_terms != None:
             for let_term_idx in range(len(term.let_terms)):
                 DafnyCodeBlock(self.tmpid)
-                self.decl_list.append("\nvar "+ str(term.var_binders[let_term_idx]).replace("$","") + " := " + self.generate_expression(term.let_terms[let_term_idx]) + "; ")
+                self.decl_list.append("\nvar "+ str(term.var_binders[let_term_idx]).replace("$","").strip(".") + " := " + self.generate_expression(term.let_terms[let_term_idx]) + "; ")
             expression_text += self.generate_expression(term.subterms[0])+";"
         elif term.op == None:
             # force int to real conversion
             if str.isdigit(str(term)) and '.' not in str(term):
                 return str(term)+".0"
-            return str(term).replace("!", "").replace("$", "")
+            return str(term).replace("!", "").replace("$", "").replace(".", "_")
         else:
             raise Exception("Unknown operator: " + str(term.op))
         
@@ -347,11 +348,11 @@ class DafnyForallBlock(DafnyCodeBlock):
         for i in range(0, len(self.term.quantified_vars[0])):
             body_text += "\nfor "+ str(tmpvar) + " := -100 to 100 {"
             if str(self.term.quantified_vars[1][i]) == "Real":
-                body_text += "\nvar " + str(self.term.quantified_vars[0][i]).replace("!","").replace("$","") + " := " + str(tmpvar) + " as real;" 
+                body_text += "\nvar " + str(self.term.quantified_vars[0][i]).replace("!","").replace("$","").strip(".") + " := " + str(tmpvar) + " as real;" 
             elif str(self.term.quantified_vars[1][i]) == "Int":
-                body_text += "\nvar " + str(self.term.quantified_vars[0][i]).replace("!","").replace("$","") + " := " + str(tmpvar) + ";"
+                body_text += "\nvar " + str(self.term.quantified_vars[0][i]).replace("!","").replace("$","").strip(".") + " := " + str(tmpvar) + ";"
             elif str(self.term.quantified_vars[1][i]) == "Bool":
-                body_text += "\nvar " + str(self.term.quantified_vars[0][i]).replace("!","").replace("$","") + " := " + str(tmpvar) + "%2 == 0;"
+                body_text += "\nvar " + str(self.term.quantified_vars[0][i]).replace("!","").replace("$","").strip(".") + " := " + str(tmpvar) + "%2 == 0;"
             else:
                 raise Exception("Unsupported type for quantifier")
         
