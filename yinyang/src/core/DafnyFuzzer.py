@@ -247,80 +247,75 @@ class DafnyFuzzer(Fuzzer):
         # For differential testing (opfuzz), the oracle is set to "unknown" and
         # gets overwritten by the result of the first solver call. For
         # metamorphic testing (yinyang) the oracle is pre-set by the cmd line.
-        if self.args.oracle == "unknown":
-            oracle = SolverResult(SolverQueryResult.UNKNOWN)
-        else:
-            oracle = init_oracle(self.args)
-
         reference = None
-        scratchfile = None
-
-        testcase = "%s/%s-%s-%s.smt2" % (
+        scratchfile = "%s/%s-%s-%s.smt2" % (
             self.args.scratchfolder,
             escape("-".join(self.currentseeds)),
             self.name,
             random_string(),
         )
-        with open(testcase, "w") as testcase_writer:
+        with open(scratchfile, "w") as testcase_writer:
             testcase_writer.write(script.__str__())
 
-        solver_cli, scratchfile = self.args.SOLVER_CLIS[0], testcase
-        solver = Solver(solver_cli)
+        if self.args.oracle != "unknown":
+            oracle = init_oracle(self.args)
+        else:
+            solver_cli = self.args.SOLVER_CLIS[0]
+            solver = Solver(solver_cli)
 
-        stdout, stderr, exitcode = solver.solve(
-            scratchfile, self.args.timeout
-        )
+            stdout, stderr, exitcode = solver.solve(
+                scratchfile, self.args.timeout
+            )
 
-        if self.max_timeouts_reached():
-            return (False, scratchfile)
-
-        # Check whether the solver call produced errors, e.g, related
-        # to its parser, options, type-checker etc., by matching stdout
-        # and stderr against the ignore list
-        # (see yinyang/config/Config.py:54).
-        if in_ignore_list(stdout, stderr):
-            log_ignore_list_mutant(solver_cli)
-            self.statistic.invalid_mutants += 1
-            return (True, scratchfile)
-
-        if exitcode != 0:
-
-            # Check whether the solver crashed with a segfault.
-            if exitcode == -signal.SIGSEGV or exitcode == 245:
-                self.statistic.effective_calls += 1
-                self.statistic.crashes += 1
-                path = self.report(
-                    script, "segfault", solver_cli, stdout, stderr
-                )
-                log_segfault_trigger(self.args, path, iteration)
-                return (True, scratchfile)
-
-            # Check whether the solver timed out.
-            elif exitcode == 137:
-                self.statistic.timeout += 1
-                self.timeout_of_current_seed += 1
-                log_solver_timeout(self.args, solver_cli, iteration)
+            if self.max_timeouts_reached():
                 return (False, scratchfile)
 
-            # Check whether a "command not found" error occurred.
-            elif exitcode == 127:
-                raise Exception("Solver not found: %s" % solver_cli)
+            # Check whether the solver call produced errors, e.g, related
+            # to its parser, options, type-checker etc., by matching stdout
+            # and stderr against the ignore list
+            # (see yinyang/config/Config.py:54).
+            if in_ignore_list(stdout, stderr):
+                log_ignore_list_mutant(solver_cli)
+                self.statistic.invalid_mutants += 1
+                return (True, scratchfile)
 
-        # Check if the stdout contains a valid solver query result,
-        # i.e., contains lines with 'sat', 'unsat' or 'unknown'.
-        if (
-            not re.search("^unsat$", stdout, flags=re.MULTILINE)
-            and not re.search("^sat$", stdout, flags=re.MULTILINE)
-            and not re.search("^unknown$", stdout, flags=re.MULTILINE)
-        ):
-            self.statistic.invalid_mutants += 1
-            log_invalid_mutant(self.args, iteration)
+            if exitcode != 0:
 
-        result = grep_result(stdout)
-        if result.equals(SolverQueryResult.UNKNOWN):
-            return (False, scratchfile)
-        oracle = result
-        reference = (solver_cli, stdout, stderr)
+                # Check whether the solver crashed with a segfault.
+                if exitcode == -signal.SIGSEGV or exitcode == 245:
+                    self.statistic.crashes += 1
+                    path = self.report(
+                        script, "segfault", solver_cli, stdout, stderr
+                    )
+                    log_segfault_trigger(self.args, path, iteration)
+                    return (True, scratchfile)
+
+                # Check whether the solver timed out.
+                elif exitcode == 137:
+                    self.statistic.timeout += 1
+                    self.timeout_of_current_seed += 1
+                    log_solver_timeout(self.args, solver_cli, iteration)
+                    return (False, scratchfile)
+
+                # Check whether a "command not found" error occurred.
+                elif exitcode == 127:
+                    raise Exception("Solver not found: %s" % solver_cli)
+
+            # Check if the stdout contains a valid solver query result,
+            # i.e., contains lines with 'sat', 'unsat' or 'unknown'.
+            if (
+                not re.search("^unsat$", stdout, flags=re.MULTILINE)
+                and not re.search("^sat$", stdout, flags=re.MULTILINE)
+                and not re.search("^unknown$", stdout, flags=re.MULTILINE)
+            ):
+                self.statistic.invalid_mutants += 1
+                log_invalid_mutant(self.args, iteration)
+
+            result = grep_result(stdout)
+            if result.equals(SolverQueryResult.UNKNOWN):
+                return (False, scratchfile)
+            oracle = result
+            reference = (solver_cli, stdout, stderr)
 
         formula = parse_file(scratchfile)
         transformer = DafnyTransformer(formula)
@@ -335,7 +330,7 @@ class DafnyFuzzer(Fuzzer):
             scratchfile+".dfy", self.args.timeout
         )
 
-        if dafny_exitcode != 0:
+        if dafny_exitcode != 0 and dafny_exitcode != 4:
 
             # Check whether the solver crashed with a segfault.
             if dafny_exitcode == -signal.SIGSEGV or dafny_exitcode == 245:
