@@ -80,7 +80,7 @@ def get_seeds(args, strategy):
         gen = get_permutation_generator(initial_seeds)
         return gen, num_initial**2
     else:
-        assert strategy in ["opfuzz", "typefuzz"]
+        assert strategy in ["opfuzz", "typefuzz", "none"]
         return initial_seeds, num_initial
 
 

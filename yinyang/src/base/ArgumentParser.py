@@ -35,7 +35,7 @@ sys.path.append(ROOTPATH)
 
 class ArgumentParser(argparse.ArgumentParser):
     def error(self, message):
-        print("usage:" + self.usage, flush=True)
+        print("usage:" + str(self.usage), flush=True)
         self.exit(
             ERR_USAGE,
             "error: %s\nFor a listing of options, use %s --help.\n"
@@ -105,6 +105,25 @@ def add_common_args(parser, rootpath, current_dir):
         metavar="num_bytes",
         default=100000,
         type=int,
+    )
+
+def add_dafnyfuzz_args(parser, rootpath, current_dir):
+    parser.add_argument(
+        "-mutation",
+        "--mutation-engine",
+        default="none",
+        metavar="{none, opfuzz, typefuzz, yinyang}",
+        type=int
+    )
+    parser.add_argument(
+        "-real",
+        "--support-real",
+        action="store_true"
+    )
+    parser.add_argument(
+        "-o",
+        "--oracle",
+        action="store_true"
     )
 
 
@@ -213,6 +232,20 @@ def add_yinyang_args(parser, rootpath, current_dir):
         action='store_true',
     )
 
+def build_dafnyfuzz_parser(current_dir, usage):
+    parser = ArgumentParser(
+        description="",
+        usage=usage,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,
+    )
+    add_common_args(parser, ROOTPATH, current_dir)
+    add_opfuzz_args(parser, ROOTPATH, current_dir)
+    add_yinyang_args(parser, ROOTPATH, current_dir)
+    add_typefuzz_args(parser, ROOTPATH, current_dir)
+    add_dafnyfuzz_args(parser, ROOTPATH, current_dir)
+
+    return parser
 
 def build_opfuzz_parser(current_dir, usage):
     parser = ArgumentParser(

@@ -144,7 +144,7 @@ def run_checks(parser, strategy):
     create_log_folder()
     create_scratch_folder()
     get_seeds()
-    if strategy in ["opfuzz", "typefuzz"]:
+    if strategy in ["opfuzz", "typefuzz","dafnyfuzz"]:
         check_opfuzz()
     else:
         check_fusion()
