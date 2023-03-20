@@ -95,7 +95,9 @@ class DafnyCodeBlock(CodeBlock):
                 expression_text += self.generate_expression(subterm) + " * "
             expression_text = expression_text[:-3]+";"
         elif term.op == ABS:
-            raise Exception("ABS not supported")
+            expression_text += "if " + self.generate_expression(term.subterms[0]) + " >= 0 then "
+            expression_text += self.generate_expression(term.subterms[0]) + " else "
+            expression_text += "(- " + self.generate_expression(term.subterms[0]) + ");"
         elif term.op == GTE:
             for subterm in term.subterms:
                 expression_text += self.generate_expression(subterm) + " >= "

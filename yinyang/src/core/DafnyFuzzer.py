@@ -32,6 +32,7 @@ import pathlib
 
 from yinyang.src.core.Fuzzer import Fuzzer
 from yinyang.src.core.Dafny import Dafny
+from yinyang.src.transformers.DafnyTransformer import DafnyTransformer
 
 from yinyang.src.core.Statistic import Statistic
 from yinyang.src.core.Solver import Solver, SolverQueryResult, SolverResult
@@ -79,8 +80,9 @@ MAX_TIMEOUTS = 32
 
 
 class DafnyFuzzer(Fuzzer):
+
     def __init__(self, args, strategy):
-        super.__init__(args, strategy)
+        super().__init__(args, strategy)
         self.timeout_of_dafny_check = 0
         self.strategy = self.args.mutation_engine
 
@@ -250,7 +252,6 @@ class DafnyFuzzer(Fuzzer):
         else:
             oracle = init_oracle(self.args)
 
-        testbook = self.create_testbook(script)
         reference = None
         scratchfile = None
 
@@ -321,8 +322,13 @@ class DafnyFuzzer(Fuzzer):
         oracle = result
         reference = (solver_cli, stdout, stderr)
 
+        formula = parse_file(scratchfile)
+        transformer = DafnyTransformer(formula)
+        with open(scratchfile+".dfy", "w") as f:
+            f.write(transformer.generate_method())
+
         dafny_cli = self.args.SOLVER_CLIS[1]
-        dafny = Dafny(solver_cli)
+        dafny = Dafny(dafny_cli)
         self.statistic.solver_calls += 1
 
         dafny_stdout, dafny_stderr, dafny_exitcode = dafny.solve(

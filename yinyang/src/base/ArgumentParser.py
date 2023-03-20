@@ -113,7 +113,7 @@ def add_dafnyfuzz_args(parser, rootpath, current_dir):
         "--mutation-engine",
         default="none",
         metavar="{none, opfuzz, typefuzz, yinyang}",
-        type=int
+        type=str
     )
     parser.add_argument(
         "-real",
@@ -123,7 +123,9 @@ def add_dafnyfuzz_args(parser, rootpath, current_dir):
     parser.add_argument(
         "-o",
         "--oracle",
-        action="store_true"
+        default="unknown",
+        metavar="{unknown, sat, unsat}",
+        type=str
     )
 
 
@@ -241,8 +243,6 @@ def build_dafnyfuzz_parser(current_dir, usage):
     )
     add_common_args(parser, ROOTPATH, current_dir)
     add_opfuzz_args(parser, ROOTPATH, current_dir)
-    add_yinyang_args(parser, ROOTPATH, current_dir)
-    add_typefuzz_args(parser, ROOTPATH, current_dir)
     add_dafnyfuzz_args(parser, ROOTPATH, current_dir)
 
     return parser
