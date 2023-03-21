@@ -200,13 +200,17 @@ class DafnyFuzzer(Fuzzer):
                     break  # Continue to next seed.
 
                 (mutate_further, scratchfile) = self.test(mutant, i + 1)
-                if not mutate_further:  # Continue to next seed.
-                    log_skip_seed_test(self.args, i)
-                    break  # Continue to next seed.
 
                 self.statistic.mutants += 1
                 if not self.args.keep_mutants:
                     os.remove(scratchfile)
+                    os.remove(scratchfile+".dfy")
+
+                if not mutate_further:  # Continue to next seed.
+                    log_skip_seed_test(self.args, i)
+                    break  # Continue to next seed.
+
+
 
             log_finished_generations(successful_gens, unsuccessful_gens)
         self.terminate()
@@ -352,6 +356,9 @@ class DafnyFuzzer(Fuzzer):
             # Check whether a "command not found" error occurred.
             elif dafny_exitcode == 127:
                 raise Exception("Dafny not found: %s" % dafny_cli)
+            
+            else:
+                raise Exception("Dafny exited with code %s, stdout %s, stderr %s" % (dafny_exitcode, dafny_stdout, dafny_stderr))
             
         else:
 

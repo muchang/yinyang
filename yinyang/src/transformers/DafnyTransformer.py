@@ -165,9 +165,9 @@ class DafnyCodeBlock(CodeBlock):
             expression_text += self.generate_expression(term.subterms[0])+";"
         elif term.op == None:
             # force int to real conversion
-            if str.isdigit(str(term)) and '.' not in str(term):
-                return str(term)+".0"
-            return str(term).replace("!", "").replace("$", "").replace(".", "_")
+            # if str.isdigit(str(term)) and '.' not in str(term):
+            #     return str(term)+".0"
+            return str(term).replace("!", "").replace("$", "").replace(".", "")
         else:
             raise Exception("Unknown operator: " + str(term.op))
         
