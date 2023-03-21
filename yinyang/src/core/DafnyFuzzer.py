@@ -322,7 +322,7 @@ class DafnyFuzzer(Fuzzer):
             reference = (solver_cli, stdout, stderr)
 
         formula = parse_file(scratchfile)
-        transformer = DafnyTransformer(formula)
+        transformer = DafnyTransformer(formula, self.args)
         with open(scratchfile+".dfy", "w") as f:
             f.write(transformer.generate_method())
 

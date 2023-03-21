@@ -21,15 +21,17 @@
 # SOFTWARE.
 
 class Transformer:
-    def __init__(self, formula):
+    def __init__(self, formula, args):
         self.formula = formula
         self.assert_cmds = self.formula[0].assert_cmd
         self.free_variables = self.formula[1]
+        self.args = args
     
     def trans(self):
         pass
 
 class CodeBlock:
-    def __init__(self, tmpid):
+    def __init__(self, tmpid, args):
         self.tmpid = tmpid
         self.identifier = "tmp" + str(self.tmpid)
+        self.args = args

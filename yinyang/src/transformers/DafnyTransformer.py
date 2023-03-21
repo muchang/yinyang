@@ -18,8 +18,8 @@ def trans_type(smt_type):
 
 class DafnyCodeBlock(CodeBlock):
 
-    def __init__(self, tmpid):
-        super().__init__(tmpid)
+    def __init__(self, tmpid, args):
+        super().__init__(tmpid, args)
         self.decl_list = []
     
     def get_block_init(self):
@@ -43,7 +43,7 @@ class DafnyCodeBlock(CodeBlock):
             # expression_text = expression_text[:-4]+";"
             if len(term.subterms) == 0:
                 raise Exception("AND with no subterms")
-            andblock = DafnyAndBlock(self.tmpid, term.subterms, self.tmpid)
+            andblock = DafnyAndBlock(self.tmpid, term.subterms, self.tmpid, self.args)
             expression_text += andblock.generate_block()
             var_name = "tmp_" + str(andblock.identifier)
             self.tmpid = andblock.tmpid
@@ -160,13 +160,13 @@ class DafnyCodeBlock(CodeBlock):
         
         elif term.let_terms != None:
             for let_term_idx in range(len(term.let_terms)):
-                DafnyCodeBlock(self.tmpid)
+                DafnyCodeBlock(self.tmpid, self.args)
                 self.decl_list.append("\nvar "+ str(term.var_binders[let_term_idx]).replace("$","").strip(".") + " := " + self.generate_expression(term.let_terms[let_term_idx]) + "; ")
             expression_text += self.generate_expression(term.subterms[0])+";"
         elif term.op == None:
             # force int to real conversion
-            # if str.isdigit(str(term)) and '.' not in str(term):
-            #     return str(term)+".0"
+            if self.args.real_support and str.isdigit(str(term)) and '.' not in str(term):
+                return str(term)+".0"
             return str(term).replace("!", "").replace("$", "").replace(".", "")
         else:
             raise Exception("Unknown operator: " + str(term.op))
@@ -191,8 +191,8 @@ class DafnyCodeBlock(CodeBlock):
     
 class DafnyAssertBlock(DafnyCodeBlock):
     
-    def __init__(self, expression, tmpid):
-        super().__init__(tmpid)
+    def __init__(self, expression, tmpid, args):
+        super().__init__(tmpid, args)
         self.expression = expression
     
     def generate_block(self):
@@ -211,8 +211,8 @@ class DafnyAssertBlock(DafnyCodeBlock):
     
 class DafnyAndBlock(DafnyCodeBlock):
     
-    def __init__(self, tmpid, subterms, identifier):
-        super().__init__(tmpid)
+    def __init__(self, tmpid, subterms, identifier, args):
+        super().__init__(tmpid, args)
         self.subterms = subterms
         self.identifier = identifier
 
@@ -233,7 +233,7 @@ class DafnyAndBlock(DafnyCodeBlock):
         if len(self.subterms) == 1:
             body_text += "\ntmp_" + str(self.identifier) + " := true; \n}\n"
         else:
-            subblock  = DafnyAndBlock(self.tmpid, self.subterms[1:], self.identifier)
+            subblock  = DafnyAndBlock(self.tmpid, self.subterms[1:], self.identifier, self.args)
             body_text += subblock.generate_block()
             body_text += "}\n"
             self.tmpid = subblock.tmpid
@@ -246,8 +246,8 @@ class DafnyAndBlock(DafnyCodeBlock):
     
 class DafnyOrBlock(DafnyCodeBlock):
     
-    def __init__(self, tmpid, subterms, identifier):
-        super().__init__(tmpid)
+    def __init__(self, tmpid, subterms, identifier, args):
+        super().__init__(tmpid, args)
         self.subterms = subterms
         self.identifier = identifier
 
@@ -268,7 +268,7 @@ class DafnyOrBlock(DafnyCodeBlock):
         body_text += "\ntmp_" + str(self.identifier) + " := true; \n}\n"
 
         if len(self.subterms) != 1:
-            subblock  = DafnyOrBlock(self.tmpid, self.subterms[1:], self.identifier)
+            subblock  = DafnyOrBlock(self.tmpid, self.subterms[1:], self.identifier, self.args)
             body_text += "else {" + subblock.generate_block()
             body_text += "}\n"
             self.tmpid = subblock.tmpid
@@ -281,8 +281,8 @@ class DafnyOrBlock(DafnyCodeBlock):
 
 class DafnyXORBlock(DafnyCodeBlock):
 
-    def __init__(self, tmpid, subterms, identifier, truth=True):
-        super().__init__(tmpid)
+    def __init__(self, tmpid, subterms, identifier, args, truth=True):
+        super().__init__(tmpid, args)
         self.subterms = subterms
         self.identifier = identifier
         self.truth = truth
@@ -329,8 +329,8 @@ class DafnyXORBlock(DafnyCodeBlock):
 
 class DafnyForallBlock(DafnyCodeBlock):
 
-    def __init__(self, tmpid, term, identifier):
-        super().__init__(tmpid)
+    def __init__(self, tmpid, term, identifier, args):
+        super().__init__(tmpid, args)
         self.term = term
         self.identifier = identifier
 
@@ -360,7 +360,7 @@ class DafnyForallBlock(DafnyCodeBlock):
         
 
 
-        forallblock = DafnyCodeBlock(self.tmpid)
+        forallblock = DafnyCodeBlock(self.tmpid, self.args)
         binding_result =  "tmp_" + str(self.identifier) + " := " +forallblock.generate_expression(self.term.subterms[0])+";"
         decl_text = ""
         for decl in forallblock.decl_list:
@@ -377,8 +377,8 @@ class DafnyForallBlock(DafnyCodeBlock):
         
 class DafnyExistsBlock(DafnyCodeBlock):
 
-    def __init__(self, tmpid, term, identifier):
-        super().__init__(tmpid)
+    def __init__(self, tmpid, term, identifier, args):
+        super().__init__(tmpid, args)
         self.term = term
         self.identifier = identifier
 
@@ -402,7 +402,7 @@ class DafnyExistsBlock(DafnyCodeBlock):
            body_text += "\nvar " + str(self.term.quantified_vars[0][0]) + " := " + str(tmpvar) + ";" 
         else:
             raise Exception("Unsupported type for quantifier")
-        forallblock = DafnyCodeBlock(self.tmpid)
+        forallblock = DafnyCodeBlock(self.tmpid, self.args)
         binding_result =  "tmp_" + str(self.identifier) + " := ! " + forallblock.generate_expression(self.term.subterms[0])+";"
         decl_text = ""
         for decl in forallblock.decl_list:
@@ -419,8 +419,8 @@ class DafnyExistsBlock(DafnyCodeBlock):
         
 
 class DafnyTransformer(Transformer):
-    def __init__(self, formula):
-        super().__init__(formula)
+    def __init__(self, formula, args):
+        super().__init__(formula, args)
         self.tmpid = 0
     
     def generate_args(self):
@@ -436,7 +436,11 @@ class DafnyTransformer(Transformer):
         function_text = "method test"
         function_text += self.generate_args()
         function_text += "{"
+        if self.args.loop_wrap == True:
+            function_text += "\nwhile (true) {"
         function_text += self.generate_body()
+        if self.args.loop_wrap == True:
+            function_text += "\n}"
         function_text += "}"
         return function_text
     
@@ -449,7 +453,7 @@ class DafnyTransformer(Transformer):
             # codeblock = DafnyAssertBlock(assert_cmd.term, self.tmpid)
             # body_text += codeblock.generate_block()
             # self.tmpid = codeblock.tmpid
-        assertblock = DafnyAssertBlock(Term(op="and", subterms=assert_cmd_terms), self.tmpid)
+        assertblock = DafnyAssertBlock(Term(op="and", subterms=assert_cmd_terms), self.tmpid, self.args)
         body_text += assertblock.generate_block()
         self.tmpid = assertblock.tmpid
         

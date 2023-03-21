@@ -117,7 +117,7 @@ def add_dafnyfuzz_args(parser, rootpath, current_dir):
     )
     parser.add_argument(
         "-real",
-        "--support-real",
+        "--real-support",
         action="store_true"
     )
     parser.add_argument(
@@ -126,6 +126,11 @@ def add_dafnyfuzz_args(parser, rootpath, current_dir):
         default="unknown",
         metavar="{unknown, sat, unsat}",
         type=str
+    )
+    parser.add_argument(
+        "-loop",
+        "--loop-wrap",
+        action="store_true"
     )
 
 
