@@ -67,6 +67,8 @@ def grep_result(stdout):
             result.append(SolverQueryResult.SAT)
         elif re.search("^unknown$", line, flags=re.MULTILINE):
             result.append(SolverQueryResult.UNKNOWN)
+        elif re.search("^timeout$", line, flags=re.MULTILINE):
+            result.append(SolverQueryResult.UNKNOWN)
     return result
 
 

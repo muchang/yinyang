@@ -33,7 +33,8 @@ class Dafny:
 
     def solve(self, file, timeout, debug=False):
         try:
-            cmd = list(filter(None, self.cil.split(" "))) + ["verify"] + [file]
+            dafny_cmd = list(filter(None, self.cil.split(" ")))
+            cmd = [dafny_cmd[0]] + [file] + dafny_cmd[1:]
             if debug:
                 print("cmd: " + " ".join(cmd), flush=True)
             output = subprocess.run(
@@ -74,6 +75,10 @@ class Dafny:
     def grep_result(self, stdout):
         if "assertion might not hold" in stdout:
             return SolverResult(SolverQueryResult.SAT)
+        elif "getting info about 'unknown' response" in stdout:
+            return SolverResult(SolverQueryResult.UNKNOWN)
+        elif "out of resource" in stdout:
+            return SolverResult(SolverQueryResult.UNKNOWN)
         elif "0 error" in stdout:
             return SolverResult(SolverQueryResult.UNSAT)
         else:

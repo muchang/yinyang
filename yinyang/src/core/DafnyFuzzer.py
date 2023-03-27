@@ -203,8 +203,11 @@ class DafnyFuzzer(Fuzzer):
 
                 self.statistic.mutants += 1
                 if not self.args.keep_mutants:
-                    os.remove(scratchfile)
-                    os.remove(scratchfile+".dfy")
+                    try:
+                        os.remove(scratchfile)
+                        os.remove(scratchfile+".dfy")
+                    except OSError:
+                        pass
 
                 if not mutate_further:  # Continue to next seed.
                     log_skip_seed_test(self.args, i)
@@ -318,6 +321,10 @@ class DafnyFuzzer(Fuzzer):
             result = grep_result(stdout)
             if result.equals(SolverQueryResult.UNKNOWN):
                 return (False, scratchfile)
+            elif result.equals(SolverQueryResult.UNSAT):
+                self.statistic.invalid_mutants += 1
+                log_invalid_mutant(self.args, iteration)
+                return (True, scratchfile)
             oracle = result
             reference = (solver_cli, stdout, stderr)
 

@@ -18,7 +18,7 @@ def trans_type(smt_type):
 
 class DafnyCodeBlock(CodeBlock):
 
-    def __init__(self, tmpid, args):
+    def __init__(self, tmpid, args=None):
         super().__init__(tmpid, args)
         self.decl_list = []
     
@@ -57,14 +57,14 @@ class DafnyCodeBlock(CodeBlock):
             # expression_text = expression_text[:-4]+";"
             if len(term.subterms) == 0:
                 raise Exception("AND with no subterms")
-            orblock = DafnyOrBlock(self.tmpid, term.subterms, self.tmpid)
+            orblock = DafnyOrBlock(self.tmpid, term.subterms, self.tmpid, self.args)
             expression_text += orblock.generate_block()
             var_name = "tmp_" + str(orblock.identifier)
             self.tmpid = orblock.tmpid
         elif term.op == XOR:
             if len(term.subterms) == 0:
                 raise Exception("AND with no subterms")
-            xorblock = DafnyXORBlock(self.tmpid, term.subterms, self.tmpid)
+            xorblock = DafnyXORBlock(self.tmpid, term.subterms, self.tmpid, self.args)
             expression_text += xorblock.generate_block()
             var_name = "tmp_" + str(xorblock.identifier)
             self.tmpid = xorblock.tmpid
@@ -95,7 +95,11 @@ class DafnyCodeBlock(CodeBlock):
                 expression_text += self.generate_expression(subterm) + " * "
             expression_text = expression_text[:-3]+";"
         elif term.op == ABS:
-            expression_text += "if " + self.generate_expression(term.subterms[0]) + " >= 0 then "
+            if self.args != None and self.args.real_support:
+                zero = "0.0"
+            else:
+                zero = "0"
+            expression_text += "if " + self.generate_expression(term.subterms[0]) + " >= " + zero + " then "
             expression_text += self.generate_expression(term.subterms[0]) + " else "
             expression_text += "(- " + self.generate_expression(term.subterms[0]) + ");"
         elif term.op == GTE:
@@ -131,7 +135,7 @@ class DafnyCodeBlock(CodeBlock):
             expression_text = expression_text[:-3]+";"
             
         elif term.quantifier == FORALL:
-            forallblock = DafnyForallBlock(self.tmpid, term, self.tmpid)
+            forallblock = DafnyForallBlock(self.tmpid, term, self.tmpid, self.args)
             expression_text += forallblock.generate_block()
             var_name = "tmp_" + str(forallblock.identifier)
             self.tmpid = forallblock.tmpid
@@ -146,7 +150,7 @@ class DafnyCodeBlock(CodeBlock):
 
         elif term.quantifier == EXISTS:
             # raise  Exception("Quantifier Exists is not supported")
-            existsblock = DafnyExistsBlock(self.tmpid, term, self.tmpid)
+            existsblock = DafnyExistsBlock(self.tmpid, term, self.tmpid, self.args)
             expression_text += existsblock.generate_block()
             var_name = "tmp_" + str(existsblock.identifier)
             self.tmpid = existsblock.tmpid
@@ -165,7 +169,7 @@ class DafnyCodeBlock(CodeBlock):
             expression_text += self.generate_expression(term.subterms[0])+";"
         elif term.op == None:
             # force int to real conversion
-            if self.args.real_support and str.isdigit(str(term)) and '.' not in str(term):
+            if self.args != None and self.args.real_support and str.isdigit(str(term)) and '.' not in str(term):
                 return str(term)+".0"
             return str(term).replace("!", "").replace("$", "").replace(".", "")
         else:
@@ -419,7 +423,7 @@ class DafnyExistsBlock(DafnyCodeBlock):
         
 
 class DafnyTransformer(Transformer):
-    def __init__(self, formula, args):
+    def __init__(self, formula, args=None):
         super().__init__(formula, args)
         self.tmpid = 0
     
@@ -436,10 +440,10 @@ class DafnyTransformer(Transformer):
         function_text = "method test"
         function_text += self.generate_args()
         function_text += "{"
-        if self.args.loop_wrap == True:
-            function_text += "\nwhile (true) {"
+        if self.args != None and self.args.loop_wrap == True:
+            function_text += "\nfor empty_i := -100 to 100 {"
         function_text += self.generate_body()
-        if self.args.loop_wrap == True:
+        if self.args != None and self.args.loop_wrap == True:
             function_text += "\n}"
         function_text += "}"
         return function_text
