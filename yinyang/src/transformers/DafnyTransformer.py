@@ -318,11 +318,17 @@ class DafnyXORBlock(DafnyCodeBlock):
         if len(self.subterms) == 1:
             body_text += "\ntmp_" + str(self.identifier) + " := "+ self.get_truth(True) +"; \n}\n"
         else:
-            subblock  = DafnyXORBlock(self.tmpid, self.subterms[1:], self.identifier, not self.truth)
+            subblock  = DafnyXORBlock(self.tmpid, self.subterms[1:], self.identifier, self.args, not self.truth)
             body_text += subblock.generate_block()
             body_text += "}\n"
             self.tmpid = subblock.tmpid
-        body_text += "else {" + "\ntmp_" + str(self.identifier) + " := "+ self.get_truth(False) +";\n"
+        body_text += "else {"
+        if len(self.subterms) == 1:
+            body_text += "\ntmp_" + str(self.identifier) + " := "+ self.get_truth(False) +";\n"
+        else:
+            subblock  = DafnyXORBlock(self.tmpid, self.subterms[1:], self.identifier, self.args, self.truth)
+            body_text += subblock.generate_block()
+            self.tmpid = subblock.tmpid
         body_text += "}\n"
 
         for decl in self.decl_list:
