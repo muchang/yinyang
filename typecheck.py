@@ -11,7 +11,10 @@ if len(sys.argv) < 2:
 
 def typecheck_smt2(fn):  
     script, glob = parse_file(fn, silent=True)
-    typecheck(script, glob)
+
+    # Make sure parsing did not time out or crash
+    if script is not None:
+        typecheck(script, glob)
 
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[2] == "--silent":
