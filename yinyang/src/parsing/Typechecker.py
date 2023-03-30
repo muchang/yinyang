@@ -590,8 +590,8 @@ def typecheck_binary_bool_rt(expr, ctxt):
     t1 = typecheck_expr(expr.subterms[0], ctxt)
     t2 = typecheck_expr(expr.subterms[1], ctxt)
 
-    if not isinstance(arg1, BITVECTOR_TYPE) or\
-       not isinstance(arg2, BITVECTOR_TYPE):
+    if not isinstance(t1, BITVECTOR_TYPE) or\
+       not isinstance(t2, BITVECTOR_TYPE):
         raise TypeCheckError(
             expr, [arg1, arg2], [BITVECTOR_TYPE, BITVECTOR_TYPE], [t1, t2]
         )

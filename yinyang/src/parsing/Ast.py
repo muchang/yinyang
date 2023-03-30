@@ -718,4 +718,4 @@ class Term:
             return self.name
 
         if self.is_var:
-            return self.name + ":" + self.type
+            return self.name + ":" + str(self.type)
