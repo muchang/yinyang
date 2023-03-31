@@ -17,17 +17,16 @@ def typecheck_smt2(fn):
         typecheck(script, glob)
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3 and sys.argv[2] == "--silent":
-        try:
-            typecheck_smt2(sys.argv[1])
-        except Exception as e: 
-            print(sys.argv[1])
-            exit(1)
-    elif len(sys.argv) == 3 and sys.argv[2] == "--moderatelyverbose":
+    if len(sys.argv) == 3:
         try:
             typecheck_smt2(sys.argv[1])
         except Exception as e:
-            print(f"[{sys.argv[1]}] {str(e)}")
+            if sys.argv[2] == "--silent":
+                print(sys.argv[1])
+            elif sys.argv[2] == "--moderatelyverbose":
+                print(f"[{sys.argv[1]}] {str(e)}")
+            else:
+                print(f"Unknown flag {sys.argv[2]}")
             exit(1)
     else:
          typecheck_smt2(sys.argv[1])
