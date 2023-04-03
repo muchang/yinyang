@@ -260,9 +260,12 @@ BVLSHR = "bvlshr"
 BVASHR = "bvashr"
 BVULT = "bvult"
 BVULE = "bvule"
+BVUGT = "bvugt"
+BVUGE = "bvuge"
 BVSLT = "bvslt"
 BVSLE = "bvsle"
 BVSGT = "bvsgt"
+BVSGE = "bvsge"
 BVSDIV = "bvsdiv"
 
 
@@ -283,9 +286,12 @@ BV_OPS = [
     BVLSHR,
     BVULT,
     BVULE,
+    BVUGT,
+    BVUGE,
     BVSLT,
     BVSLE,
     BVSGT,
+    BVSGE,
     BVSDIV,
 ]
 
