@@ -41,8 +41,10 @@ from yinyang.src.parsing.Types import (
     STR_SUBSTR, STR_INDEXOF, STR_REPLACE, STR_REPLACE_ALL, STR_REPLACE_RE,
     STR_REPLACE_RE_ALL, STR_TO_CODE, STR_TO_INT, STR_TO_RE, STR_FROM_CODE,
     STR_FROM_INT, STR_IS_DIGIT, RE_RANGE, SELECT, STORE, BV_CONCAT, BVNOT,
-    BVNEG, BVAND, BVOR, BVXOR, BVADD, BVSUB, BVMUL, BVUDIV, BVUREM, BVSHL,
-    BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVULT,
+    BVNEG, BVAND, BVOR, BVNOR, BVXOR, BVADD, BVSUB, BVMUL, BVUDIV, BVUREM,
+    BVSHL,
+    BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVSMOD,
+    BVULT,
     BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE, FP_ABS, FP_NEG, FP_ADD,
     FP_SUB, FP_MUL, FP_DIV,
     FP_SQRT, FP_REM, FP_ROUND_TO_INTEGRAL, FP_NORMAL, FP_ISSUBNORMAL,
@@ -612,6 +614,7 @@ def typecheck_bv_ops(expr, ctxt):
     if expr.op in [
         BVAND,
         BVOR,
+        BVNOR,
         BVXOR,
         BVADD,
         BVSUB,
@@ -622,6 +625,7 @@ def typecheck_bv_ops(expr, ctxt):
         BVLSHR,
         BVASHR,
         BVSDIV,
+        BVSMOD,
     ]:
         return typecheck_bv_binary(expr, ctxt)
     if expr.op in [BVULT, BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE]:

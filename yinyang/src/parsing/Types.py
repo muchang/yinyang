@@ -249,6 +249,7 @@ BVNOT = "bvnot"
 BVNEG = "bvneg"
 BVAND = "bvand"
 BVOR = "bvor"
+BVNOR = "bvnor"
 BVXOR = "bvxor"
 BVADD = "bvadd"
 BVSUB = "bvsub"
@@ -267,6 +268,7 @@ BVSLE = "bvsle"
 BVSGT = "bvsgt"
 BVSGE = "bvsge"
 BVSDIV = "bvsdiv"
+BVSMOD = "bvsmod"
 
 
 BV_OPS = [
@@ -275,6 +277,7 @@ BV_OPS = [
     BVNEG,
     BVAND,
     BVOR,
+    BVNOR,
     BVXOR,
     BVADD,
     BVSUB,
@@ -293,6 +296,7 @@ BV_OPS = [
     BVSGT,
     BVSGE,
     BVSDIV,
+    BVSMOD,
 ]
 
 """
