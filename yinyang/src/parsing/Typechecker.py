@@ -570,9 +570,9 @@ def typecheck_bv_binary(expr, ctxt):
     """
     (op2 (_ BitVec m) (_ BitVec m) (_ BitVec m))
     """
-    arg1, _ = expr.subterms[0], expr.subterms[1]
-    t1 = typecheck_expr(expr.subterms[0], ctxt)
-    t2 = typecheck_expr(expr.subterms[1], ctxt)
+    arg1, arg2 = expr.subterms[0], expr.subterms[1]
+    t1 = typecheck_expr(arg1, ctxt)
+    t2 = typecheck_expr(arg2, ctxt)
     if not isinstance(t1, BITVECTOR_TYPE) or\
        not isinstance(t2, BITVECTOR_TYPE):
         expected = "[" + str(BITVECTOR_TYPE) + "," + str(BITVECTOR_TYPE) + "]"
