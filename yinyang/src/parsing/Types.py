@@ -71,8 +71,8 @@ def sort2type(sort):
         return FP_TYPE(eb, sb)
 
     if "BitVec" in sort:
-        bitwith = int(sort.split(" ")[2][:-1])
-        return BITVECTOR_TYPE(bitwith)
+        bitwidth = int(sort.split(" ")[2][:-1])
+        return BITVECTOR_TYPE(bitwidth)
     return sort
 
 
