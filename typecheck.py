@@ -29,4 +29,4 @@ if __name__ == "__main__":
                 print(f"Unknown flag {sys.argv[2]}")
             exit(1)
     else:
-         typecheck_smt2(sys.argv[1])
+        typecheck_smt2(sys.argv[1])
