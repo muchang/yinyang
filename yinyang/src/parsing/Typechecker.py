@@ -41,8 +41,8 @@ from yinyang.src.parsing.Types import (
     STR_SUBSTR, STR_INDEXOF, STR_REPLACE, STR_REPLACE_ALL, STR_REPLACE_RE,
     STR_REPLACE_RE_ALL, STR_TO_CODE, STR_TO_INT, STR_TO_RE, STR_FROM_CODE,
     STR_FROM_INT, STR_IS_DIGIT, RE_RANGE, SELECT, STORE, BV_CONCAT, BVNOT,
-    BVNEG, BVAND, BVOR, BVNOR, BVXOR, BVADD, BVSUB, BVMUL, BVUDIV, BVUREM,
-    BVSHL,
+    BVNEG, BVAND, BVNAND, BVOR, BVNOR, BVXOR, BVXNOR, BVADD, BVSUB, BVMUL,
+    BVUDIV, BVUREM, BVSHL,
     BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVSMOD,
     BVULT,
     BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE, FP_ABS, FP_NEG, FP_ADD,
@@ -613,9 +613,11 @@ def typecheck_bv_ops(expr, ctxt):
         return typecheck_bv_unary(expr, ctxt)
     if expr.op in [
         BVAND,
+        BVNAND,
         BVOR,
         BVNOR,
         BVXOR,
+        BVXNOR,
         BVADD,
         BVSUB,
         BVMUL,

@@ -248,9 +248,11 @@ BV_CONCAT = "concat"
 BVNOT = "bvnot"
 BVNEG = "bvneg"
 BVAND = "bvand"
+BVNAND = "bvnand"
 BVOR = "bvor"
 BVNOR = "bvnor"
 BVXOR = "bvxor"
+BVXNOR = "bvxnor"
 BVADD = "bvadd"
 BVSUB = "bvsub"
 BVMUL = "bvmul"
@@ -276,9 +278,11 @@ BV_OPS = [
     BVNOT,
     BVNEG,
     BVAND,
+    BVNAND,
     BVOR,
     BVNOR,
     BVXOR,
+    BVXNOR,
     BVADD,
     BVSUB,
     BVMUL,
