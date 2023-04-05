@@ -258,6 +258,7 @@ BVSUB = "bvsub"
 BVMUL = "bvmul"
 BVUDIV = "bvudiv"
 BVUREM = "bvurem"
+BVSREM = "bvsrem"
 BVSHL = "bvshl"
 BVLSHR = "bvlshr"
 BVASHR = "bvashr"
@@ -288,6 +289,7 @@ BV_OPS = [
     BVMUL,
     BVUDIV,
     BVUREM,
+    BVSREM,
     BVSHL,
     BVASHR,
     BVLSHR,
