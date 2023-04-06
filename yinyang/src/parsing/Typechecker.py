@@ -573,7 +573,11 @@ def typecheck_bv_extract(expr, ctxt):
     t = typecheck_expr(arg, ctxt)
     if not isinstance(t, BITVECTOR_TYPE):
         raise TypeCheckError(expr, arg, BITVECTOR_TYPE, t)
-    # TODO: ensure i..j range is within the available m bits
+    # Determine m
+    m = t.bitwidth
+    condition = m > i and i >= j and j >= 0
+    if not condition:
+        raise UnknownOperator(f"m > i >= j >= 0 must hold for {expr.op}")
     # Return BitVec n
     n = i - j + 1
     return BITVECTOR_TYPE(n)
