@@ -556,6 +556,50 @@ def typecheck_bv_concat(expr, ctxt):
     bitwidth = t1.bitwidth + t2.bitwidth
     return BITVECTOR_TYPE(bitwidth)
 
+def typecheck_bv_extract(expr, ctxt):
+    """
+    ((_ extract i j) (_ BitVec m) (_ BitVec n))
+    """
+    # Determine i, j
+    i, j = None, None
+    try:
+        op_args = expr.op.replace("(", "").replace(")", "").split(" ")
+        i = int(op_args[-2])
+        j = int(op_args[-1])
+    except Exception:
+        raise UnknownOperator(expr.op)
+    # Ensure BitVec type
+    arg = expr.subterms[0]
+    t = typecheck_expr(arg, ctxt)
+    if not isinstance(t, BITVECTOR_TYPE):
+        raise TypeCheckError(expr, arg, BITVECTOR_TYPE, t)
+    # TODO: ensure i..j range is within the available m bits
+    # Return BitVec n
+    n = i - j + 1
+    return BITVECTOR_TYPE(n)
+
+
+def typecheck_bv_extend_ops(expr, ctxt):
+    """
+    ((_ zero_extend i) (_ BitVec m) (_ BitVec m+i))
+    ((_ sign_extend i) (_ BitVec m) (_ BitVec m+i))
+    """
+    # Determine i
+    i = None
+    try:
+        i = int(expr.op.replace("(", "").replace(")", "").split(" ")[-1])
+    except Exception:
+        raise UnknownOperator(expr.op)
+    # Ensure BitVec type
+    arg = expr.subterms[0]
+    t = typecheck_expr(arg, ctxt)
+    if not isinstance(t, BITVECTOR_TYPE):
+        raise TypeCheckError(expr, arg, BITVECTOR_TYPE, t)
+    # Determin m
+    m = t.bitwidth
+    # Return BitVec m+i
+    return BITVECTOR_TYPE(m+i)
+
 
 def typecheck_bv_unary(expr, ctxt):
     """
@@ -575,11 +619,14 @@ def typecheck_bv_binary(expr, ctxt):
     arg1, arg2 = expr.subterms[0], expr.subterms[1]
     t1 = typecheck_expr(arg1, ctxt)
     t2 = typecheck_expr(arg2, ctxt)
-    if not isinstance(t1, BITVECTOR_TYPE) or\
-       not isinstance(t2, BITVECTOR_TYPE):
-        expected = "[" + str(BITVECTOR_TYPE) + "," + str(BITVECTOR_TYPE) + "]"
+    ok1 = isinstance(t1, BITVECTOR_TYPE)
+    ok2 = isinstance(t2, BITVECTOR_TYPE) and t1.bitwidth == t2.bitwidth
+    if not ok1 or not ok2:
+        expected_bitwidth = t1.bitwidth if ok1 else None
+        faulty = arg2 if ok1 else arg1
+        expected = "[" + str(BITVECTOR_TYPE(expected_bitwidth)) + "," + str(BITVECTOR_TYPE(expected_bitwidth)) + "]"
         actual = "[" + str(t1) + "," + str(t2) + "]"
-        raise TypeCheckError(expr, arg1, expected, actual)
+        raise TypeCheckError(expr, faulty, expected, actual)
     return BITVECTOR_TYPE(t1.bitwidth)
 
 
@@ -930,13 +977,13 @@ def typecheck_expr(expr, ctxt=Context({}, {})):
         if TO_FP_UNSIGNED in expr.op:
             return annotate(typecheck_to_fp_unsigned, expr, ctxt)
 
-        # BV infix ops
-        if (
-            BV_EXTRACT in expr.op
-            or BV_ZERO_EXTEND in expr.op
-            or BV_SIGN_EXTEND in expr.op
-        ):
-            return annotate(typecheck_bv_unary, expr, ctxt)
+        # BV extract
+        if BV_EXTRACT in expr.op:
+            return annotate(typecheck_bv_extract, expr, ctxt)
+        
+        # BV extend ops
+        if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
+            return annotate(typecheck_bv_extend_ops, expr, ctxt)
 
         key = expr.op.__str__()
         if key in ctxt.globals:
