@@ -655,6 +655,26 @@ def typecheck_bv_binary(expr, ctxt):
         raise TypeCheckError(expr, faulty, expected, actual)
     return BITVECTOR_TYPE(t1.bitwidth)
 
+def typecheck_bv_left_associative(expr, ctxt):
+    """
+    Left-associative operators such as
+    (bvxor s_1 s_2 ... s_n)
+    """
+    print(f"{ctxt.globals}")
+    if len(expr.subterms) < 1:
+        raise UnknownOperator(f"{expr.op} used without operands")
+    # Determine all types
+    types = [typecheck_expr(e, ctxt) for e in expr.subterms]
+    # Determine type correctness
+    for i in range(len(types)):
+        if not isinstance(types[i], BITVECTOR_TYPE):
+            raise TypeCheckError(expr, expr.subterms[i], str(BITVECTOR_TYPE), str(types[i]))
+    # Ensure bitwidths match
+    for i in range(1, len(types)):
+        if types[i].bitwidth != types[i-1].bitwidth:
+            raise TypeCheckError(expr, expr.subterms[i], str(BITVECTOR_TYPE(types[i-1].bitwidth)), str(types[i]))
+    return BITVECTOR_TYPE(types[0].bitwidth)
+
 
 def typecheck_binary_bool_rt(expr, ctxt):
     """
@@ -684,12 +704,14 @@ def typecheck_bv_ops(expr, ctxt):
         return typecheck_bv_concat(expr, ctxt)
     if expr.op in [BVNOT, BVNEG]:
         return typecheck_bv_unary(expr, ctxt)
+    if expr.op == BVXOR:
+        return typecheck_bv_left_associative(expr, ctxt)
     if expr.op in [
         BVAND,
         BVNAND,
         BVOR,
         BVNOR,
-        BVXOR,
+        #BVXOR,
         BVXNOR,
         BVADD,
         BVSUB,
