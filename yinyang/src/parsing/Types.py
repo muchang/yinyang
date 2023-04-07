@@ -308,6 +308,19 @@ BV_OPS = [
 ]
 
 """
+Special bitvector operations
+
+    ((_ repeat i) (_ BitVec m) (_ BitVec i*m))
+    ((_ rotate_left i) (_ BitVec m) (_ BitVec m))
+    ((_ rotate_right i) (_ BitVec m) (_ BitVec m))
+
+"""
+
+BV_REPEAT = "(_ repeat"
+BV_ROTATE_LEFT = "(_ rotate_left"
+BV_ROTATE_RIGHT = "(_ rotate_right"
+
+"""
 All function symbols with declaration of the form
 
   ((_ extract i j) (_ BitVec m) (_ BitVec n))

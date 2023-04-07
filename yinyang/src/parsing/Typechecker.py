@@ -42,7 +42,7 @@ from yinyang.src.parsing.Types import (
     STR_REPLACE_RE_ALL, STR_TO_CODE, STR_TO_INT, STR_TO_RE, STR_FROM_CODE,
     STR_FROM_INT, STR_IS_DIGIT, RE_RANGE, SELECT, STORE, BV_CONCAT, BVNOT,
     BVNEG, BVAND, BVNAND, BVOR, BVNOR, BVXOR, BVXNOR, BVADD, BVSUB, BVMUL,
-    BVUDIV, BVUREM, BVSREM, BVSHL,
+    BVUDIV, BVUREM, BVSREM, BVSHL, BV_REPEAT, BV_ROTATE_LEFT, BV_ROTATE_RIGHT,
     BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVSMOD,
     BVCOMP, BVULT,
     BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE, FP_ABS, FP_NEG, FP_ADD,
@@ -556,6 +556,28 @@ def typecheck_bv_concat(expr, ctxt):
     bitwidth = t1.bitwidth + t2.bitwidth
     return BITVECTOR_TYPE(bitwidth)
 
+
+def typecheck_bv_repeat(expr, ctxt):
+    """
+    ((_ repeat i) (_ BitVec m) (_ BitVec i*m))
+    """
+    # Determine i
+    i = None
+    try:
+        i = int(expr.op.replace("(", "").replace(")", "").split(" ")[-1])
+    except Exception:
+        raise UnknownOperator(expr.op)
+    # Ensure BitVec type
+    arg = expr.subterms[0]
+    t = typecheck_expr(arg, ctxt)
+    if not isinstance(t, BITVECTOR_TYPE):
+        raise TypeCheckError(expr, arg, BITVECTOR_TYPE, t)
+    # Determine m
+    m = t.bitwidth
+    # Return BitVec i*m
+    return BITVECTOR_TYPE(i * m)
+
+
 def typecheck_bv_extract(expr, ctxt):
     """
     ((_ extract i j) (_ BitVec m) (_ BitVec n))
@@ -983,6 +1005,14 @@ def typecheck_expr(expr, ctxt=Context({}, {})):
 
         if TO_FP_UNSIGNED in expr.op:
             return annotate(typecheck_to_fp_unsigned, expr, ctxt)
+        
+        # BV repeat
+        if BV_REPEAT in expr.op:
+            return annotate(typecheck_bv_repeat, expr, ctxt)
+
+        # BV rotate
+        if BV_ROTATE_LEFT in expr.op or BV_ROTATE_RIGHT in expr.op:
+            return annotate(typecheck_bv_unary, expr, ctxt)
 
         # BV extract
         if BV_EXTRACT in expr.op:
