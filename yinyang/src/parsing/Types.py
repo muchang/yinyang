@@ -272,6 +272,7 @@ BVSGT = "bvsgt"
 BVSGE = "bvsge"
 BVSDIV = "bvsdiv"
 BVSMOD = "bvsmod"
+BVCOMP = "bvcomp" # returns (_ BitVec 1)
 
 
 BV_OPS = [
@@ -303,6 +304,7 @@ BV_OPS = [
     BVSGE,
     BVSDIV,
     BVSMOD,
+    BVCOMP
 ]
 
 """

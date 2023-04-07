@@ -44,7 +44,7 @@ from yinyang.src.parsing.Types import (
     BVNEG, BVAND, BVNAND, BVOR, BVNOR, BVXOR, BVXNOR, BVADD, BVSUB, BVMUL,
     BVUDIV, BVUREM, BVSREM, BVSHL,
     BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVSMOD,
-    BVULT,
+    BVCOMP, BVULT,
     BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE, FP_ABS, FP_NEG, FP_ADD,
     FP_SUB, FP_MUL, FP_DIV,
     FP_SQRT, FP_REM, FP_ROUND_TO_INTEGRAL, FP_NORMAL, FP_ISSUBNORMAL,
@@ -682,6 +682,9 @@ def typecheck_bv_ops(expr, ctxt):
         BVSMOD,
     ]:
         return typecheck_bv_binary(expr, ctxt)
+    if expr.op == BVCOMP:
+        typecheck_bv_binary(expr, ctxt) # Ensure correct types
+        return BITVECTOR_TYPE(1) # Resulting bitvector has width 1 instead of m
     if expr.op in [BVULT, BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE]:
         return typecheck_binary_bool_rt(expr, ctxt)
 
