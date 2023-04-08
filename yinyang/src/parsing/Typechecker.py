@@ -660,7 +660,6 @@ def typecheck_bv_left_associative(expr, ctxt):
     Left-associative operators such as
     (bvxor s_1 s_2 ... s_n)
     """
-    print(f"{ctxt.globals}")
     if len(expr.subterms) < 1:
         raise UnknownOperator(f"{expr.op} used without operands")
     # Determine all types
