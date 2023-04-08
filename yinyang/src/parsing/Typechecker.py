@@ -621,7 +621,7 @@ def typecheck_bv_extend_ops(expr, ctxt):
     t = typecheck_expr(arg, ctxt)
     if not isinstance(t, BITVECTOR_TYPE):
         raise TypeCheckError(expr, arg, BITVECTOR_TYPE, t)
-    # Determin m
+    # Determine m
     m = t.bitwidth
     # Return BitVec m+i
     return BITVECTOR_TYPE(m+i)
