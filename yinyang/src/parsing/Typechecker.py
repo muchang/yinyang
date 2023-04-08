@@ -44,9 +44,8 @@ from yinyang.src.parsing.Types import (
     BVNEG, BVAND, BVNAND, BVOR, BVNOR, BVXOR, BVXNOR, BVADD, BVSUB, BVMUL,
     BVUDIV, BVUREM, BVSREM, BVSHL, BV_REPEAT, BV_ROTATE_LEFT, BV_ROTATE_RIGHT,
     BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVSMOD,
-    BVCOMP, BVULT,
-    BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE, FP_ABS, FP_NEG, FP_ADD,
-    FP_SUB, FP_MUL, FP_DIV,
+    BVCOMP, BVULT, BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE,
+    FP_ABS, FP_NEG, FP_ADD, FP_SUB, FP_MUL, FP_DIV,
     FP_SQRT, FP_REM, FP_ROUND_TO_INTEGRAL, FP_NORMAL, FP_ISSUBNORMAL,
     FP_IS_ZERO, FP_ISINFINITE, FP_ISNAN, FP_ISNEGATIVE, FP_ISPOSITIVE, FP_LEQ,
     FP_LT, FP_GEQ, FP_GT, FP_EQ, FP_MIN, FP_MAX, FP_FMA, TO_FP_UNSIGNED, TO_FP
@@ -650,10 +649,14 @@ def typecheck_bv_binary(expr, ctxt):
     if not ok1 or not ok2:
         expected_bitwidth = t1.bitwidth if ok1 else None
         faulty = arg2 if ok1 else arg1
-        expected = "[" + str(BITVECTOR_TYPE(expected_bitwidth)) + "," + str(BITVECTOR_TYPE(expected_bitwidth)) + "]"
+        expected = "["\
+            + str(BITVECTOR_TYPE(expected_bitwidth))\
+            + "," + str(BITVECTOR_TYPE(expected_bitwidth))\
+            + "]"
         actual = "[" + str(t1) + "," + str(t2) + "]"
         raise TypeCheckError(expr, faulty, expected, actual)
     return BITVECTOR_TYPE(t1.bitwidth)
+
 
 def typecheck_bv_left_associative(expr, ctxt):
     """
@@ -667,11 +670,19 @@ def typecheck_bv_left_associative(expr, ctxt):
     # Determine type correctness
     for i in range(len(types)):
         if not isinstance(types[i], BITVECTOR_TYPE):
-            raise TypeCheckError(expr, expr.subterms[i], str(BITVECTOR_TYPE), str(types[i]))
+            raise TypeCheckError(
+                expr,
+                expr.subterms[i],
+                str(BITVECTOR_TYPE),
+                str(types[i]))
     # Ensure bitwidths match
     for i in range(1, len(types)):
         if types[i].bitwidth != types[i-1].bitwidth:
-            raise TypeCheckError(expr, expr.subterms[i], str(BITVECTOR_TYPE(types[i-1].bitwidth)), str(types[i]))
+            raise TypeCheckError(
+                expr,
+                expr.subterms[i],
+                str(BITVECTOR_TYPE(types[i-1].bitwidth)),
+                str(types[i]))
     return BITVECTOR_TYPE(types[0].bitwidth)
 
 
@@ -710,7 +721,7 @@ def typecheck_bv_ops(expr, ctxt):
         BVNAND,
         BVOR,
         BVNOR,
-        #BVXOR,
+        # BVXOR,
         BVXNOR,
         BVADD,
         BVSUB,
@@ -726,8 +737,10 @@ def typecheck_bv_ops(expr, ctxt):
     ]:
         return typecheck_bv_binary(expr, ctxt)
     if expr.op == BVCOMP:
-        typecheck_bv_binary(expr, ctxt) # Ensure correct types
-        return BITVECTOR_TYPE(1) # Resulting bitvector has width 1 instead of m
+        # Ensure correct types
+        typecheck_bv_binary(expr, ctxt)
+        # Resulting bitvector has width 1 instead of m
+        return BITVECTOR_TYPE(1)
     if expr.op in [BVULT, BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE]:
         return typecheck_binary_bool_rt(expr, ctxt)
 
@@ -1026,7 +1039,7 @@ def typecheck_expr(expr, ctxt=Context({}, {})):
 
         if TO_FP_UNSIGNED in expr.op:
             return annotate(typecheck_to_fp_unsigned, expr, ctxt)
-        
+
         # BV repeat
         if BV_REPEAT in expr.op:
             return annotate(typecheck_bv_repeat, expr, ctxt)
@@ -1038,7 +1051,7 @@ def typecheck_expr(expr, ctxt=Context({}, {})):
         # BV extract
         if BV_EXTRACT in expr.op:
             return annotate(typecheck_bv_extract, expr, ctxt)
-        
+
         # BV extend ops
         if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
             return annotate(typecheck_bv_extend_ops, expr, ctxt)

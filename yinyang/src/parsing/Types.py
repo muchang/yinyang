@@ -61,7 +61,7 @@ def type2ffg(typ):
         return BITVECTOR_OPTION
     else:
         # If the type is not supported by ffg.
-        return None    
+        return None
 
 
 def sort2type(sort):
@@ -272,7 +272,7 @@ BVSGT = "bvsgt"
 BVSGE = "bvsge"
 BVSDIV = "bvsdiv"
 BVSMOD = "bvsmod"
-BVCOMP = "bvcomp" # returns (_ BitVec 1)
+BVCOMP = "bvcomp"  # returns (_ BitVec 1)
 
 
 BV_OPS = [
