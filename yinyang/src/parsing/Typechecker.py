@@ -623,7 +623,7 @@ def typecheck_bv_extend_ops(expr, ctxt):
     # Determine m
     m = t.bitwidth
     # Return BitVec m+i
-    return BITVECTOR_TYPE(m+i)
+    return BITVECTOR_TYPE(m + i)
 
 
 def typecheck_bv_unary(expr, ctxt):
@@ -677,11 +677,11 @@ def typecheck_bv_left_associative(expr, ctxt):
                 str(types[i]))
     # Ensure bitwidths match
     for i in range(1, len(types)):
-        if types[i].bitwidth != types[i-1].bitwidth:
+        if types[i].bitwidth != types[i - 1].bitwidth:
             raise TypeCheckError(
                 expr,
                 expr.subterms[i],
-                str(BITVECTOR_TYPE(types[i-1].bitwidth)),
+                str(BITVECTOR_TYPE(types[i - 1].bitwidth)),
                 str(types[i]))
     return BITVECTOR_TYPE(types[0].bitwidth)
 
