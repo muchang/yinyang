@@ -306,14 +306,10 @@ class AstVisitor(SMTLIBv2Visitor):
         if ctx.decimal():
             return ctx.getText().encode("utf-8").decode("utf-8"), REAL_TYPE
         if ctx.hexadecimal():
-            # Very temporary fix. Hexadecimal literals may be either
-            # integers or bitvectors! Also, bitwidth is not clearly defined.
             s = ctx.getText().encode("utf-8").decode("utf-8")
             bitwidth = (len(s) - 2) * 4
             return s, BITVECTOR_TYPE(bitwidth)
         if ctx.binary():
-            # Very temporary fix. Binary literals may be either integers
-            # or bitvectors! Also, bitwidth is not clearly defined.
             s = ctx.getText().encode("utf-8").decode("utf-8")
             bitwidth = len(s) - 2
             return s, BITVECTOR_TYPE(bitwidth)
