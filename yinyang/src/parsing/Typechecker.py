@@ -51,7 +51,7 @@ from yinyang.src.parsing.Types import (
     FP_LT, FP_GEQ, FP_GT, FP_EQ, FP_MIN, FP_MAX, FP_FMA, TO_FP_UNSIGNED, TO_FP
 )
 
-from yinyang.src.parsing.Ast import Assert
+from yinyang.src.parsing.Ast import Assert, Term
 
 
 class Context:
@@ -161,8 +161,10 @@ def typecheck_eq(expr, ctxt=[]):
     """(par (A) (= A A Bool :chainable))
     (par (A) (distinct A A Bool :pairwise))
     """
+    assert isinstance(expr, Term)
     typ = typecheck_expr(expr.subterms[0], ctxt)
     for term in expr.subterms[1:]:
+        assert isinstance(term, Term)
         t = typecheck_expr(term, ctxt)
         if t != typ:
             if not (is_subtype(t, typ) or is_subtype(typ, t)):
@@ -896,6 +898,7 @@ def typecheck_quantifiers(expr, ctxt):
 
 
 def typecheck_core(expr, ctxt):
+    assert isinstance(expr, Term)
     if expr.op == NOT:
         return typecheck_not(expr, ctxt)
     if expr.op in [AND, OR, XOR, IMPLIES]:
@@ -997,12 +1000,14 @@ def annotate(f, expr, ctxt):
     ctxt: context
     :returns: type of expr
     """
+    assert isinstance(expr, Term)
     t = f(expr, ctxt)
     expr.type = t
     return t
 
 
-def typecheck_expr(expr, ctxt=Context({}, {})):
+def typecheck_expr(expr: Term, ctxt=Context({}, {})):
+    assert isinstance(expr, Term)
     if expr.is_const:
         return expr.type
     if expr.is_var or expr.is_indexed_id:
@@ -1081,5 +1086,6 @@ def typecheck(formula, glob):
     ctxt = Context(glob, {})
     for cmd in formula.commands:
         if isinstance(cmd, Assert):
+            assert isinstance(cmd.term, Term)
             typecheck_expr(cmd.term, ctxt)
     return ctxt
