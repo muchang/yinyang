@@ -82,6 +82,6 @@ class Dafny:
         elif "0 error" in stdout:
             return SolverResult(SolverQueryResult.UNSAT)
         else:
-            raise Exception("dafny: unknown result")
+            raise Exception("dafny: unknown result \n %d", stdout)
             return SolverResult(SolverQueryResult.UNKNOWN)
 

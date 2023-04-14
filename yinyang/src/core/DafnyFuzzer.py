@@ -324,7 +324,7 @@ class DafnyFuzzer(Fuzzer):
             elif result.equals(SolverQueryResult.UNSAT):
                 self.statistic.invalid_mutants += 1
                 log_invalid_mutant(self.args, iteration)
-                return (True, scratchfile)
+                return (False, scratchfile)
             oracle = result
             reference = (solver_cli, stdout, stderr)
 

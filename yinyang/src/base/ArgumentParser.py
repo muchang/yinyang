@@ -132,6 +132,7 @@ def add_dafnyfuzz_args(parser, rootpath, current_dir):
         "--loop-wrap",
         action="store_true"
     )
+    
 
 
 def add_opfuzz_args(parser, rootpath, current_dir):
@@ -247,8 +248,12 @@ def build_dafnyfuzz_parser(current_dir, usage):
         add_help=False,
     )
     add_common_args(parser, ROOTPATH, current_dir)
-    add_opfuzz_args(parser, ROOTPATH, current_dir)
     add_dafnyfuzz_args(parser, ROOTPATH, current_dir)
+    args = parser.parse_args()
+    if args.mutation_engine == "typefuzz":
+        add_typefuzz_args(parser, ROOTPATH, current_dir)
+    elif args.mutation == "opfuzz":
+        add_opfuzz_args(parser, ROOTPATH, current_dir)
 
     return parser
 
