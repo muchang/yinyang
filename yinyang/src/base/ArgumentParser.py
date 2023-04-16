@@ -252,7 +252,7 @@ def build_dafnyfuzz_parser(current_dir, usage):
     args = parser.parse_args()
     if args.mutation_engine == "typefuzz":
         add_typefuzz_args(parser, ROOTPATH, current_dir)
-    elif args.mutation == "opfuzz":
+    elif args.mutation_engine == "opfuzz":
         add_opfuzz_args(parser, ROOTPATH, current_dir)
 
     return parser
