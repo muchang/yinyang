@@ -41,15 +41,17 @@ from yinyang.src.parsing.Types import (
     STR_SUBSTR, STR_INDEXOF, STR_REPLACE, STR_REPLACE_ALL, STR_REPLACE_RE,
     STR_REPLACE_RE_ALL, STR_TO_CODE, STR_TO_INT, STR_TO_RE, STR_FROM_CODE,
     STR_FROM_INT, STR_IS_DIGIT, RE_RANGE, SELECT, STORE, BV_CONCAT, BVNOT,
-    BVNEG, BVAND, BVOR, BVXOR, BVADD, BVSUB, BVMUL, BVUDIV, BVUREM, BVSHL,
-    BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVULT,
-    BVULE, BVSLT, BVSGT, FP_ABS, FP_NEG, FP_ADD, FP_SUB, FP_MUL, FP_DIV,
+    BVNEG, BVAND, BVNAND, BVOR, BVNOR, BVXOR, BVXNOR, BVADD, BVSUB, BVMUL,
+    BVUDIV, BVUREM, BVSREM, BVSHL, BV_REPEAT, BV_ROTATE_LEFT, BV_ROTATE_RIGHT,
+    BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVSMOD,
+    BVCOMP, BVULT, BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE,
+    FP_ABS, FP_NEG, FP_ADD, FP_SUB, FP_MUL, FP_DIV,
     FP_SQRT, FP_REM, FP_ROUND_TO_INTEGRAL, FP_NORMAL, FP_ISSUBNORMAL,
     FP_IS_ZERO, FP_ISINFINITE, FP_ISNAN, FP_ISNEGATIVE, FP_ISPOSITIVE, FP_LEQ,
     FP_LT, FP_GEQ, FP_GT, FP_EQ, FP_MIN, FP_MAX, FP_FMA, TO_FP_UNSIGNED, TO_FP
 )
 
-from yinyang.src.parsing.Ast import Assert
+from yinyang.src.parsing.Ast import Assert, Term
 
 
 class Context:
@@ -159,8 +161,10 @@ def typecheck_eq(expr, ctxt=[]):
     """(par (A) (= A A Bool :chainable))
     (par (A) (distinct A A Bool :pairwise))
     """
+    assert isinstance(expr, Term)
     typ = typecheck_expr(expr.subterms[0], ctxt)
     for term in expr.subterms[1:]:
+        assert isinstance(term, Term)
         t = typecheck_expr(term, ctxt)
         if t != typ:
             if not (is_subtype(t, typ) or is_subtype(typ, t)):
@@ -554,6 +558,76 @@ def typecheck_bv_concat(expr, ctxt):
     return BITVECTOR_TYPE(bitwidth)
 
 
+def typecheck_bv_repeat(expr, ctxt):
+    """
+    ((_ repeat i) (_ BitVec m) (_ BitVec i*m))
+    """
+    # Determine i
+    i = None
+    try:
+        i = int(expr.op.replace("(", "").replace(")", "").split(" ")[-1])
+    except Exception:
+        raise UnknownOperator(expr.op)
+    # Ensure BitVec type
+    arg = expr.subterms[0]
+    t = typecheck_expr(arg, ctxt)
+    if not isinstance(t, BITVECTOR_TYPE):
+        raise TypeCheckError(expr, arg, BITVECTOR_TYPE, t)
+    # Determine m
+    m = t.bitwidth
+    # Return BitVec i*m
+    return BITVECTOR_TYPE(i * m)
+
+
+def typecheck_bv_extract(expr, ctxt):
+    """
+    ((_ extract i j) (_ BitVec m) (_ BitVec n))
+    """
+    # Determine i, j
+    i, j = None, None
+    try:
+        op_args = expr.op.replace("(", "").replace(")", "").split(" ")
+        i = int(op_args[-2])
+        j = int(op_args[-1])
+    except Exception:
+        raise UnknownOperator(expr.op)
+    # Ensure BitVec type
+    arg = expr.subterms[0]
+    t = typecheck_expr(arg, ctxt)
+    if not isinstance(t, BITVECTOR_TYPE):
+        raise TypeCheckError(expr, arg, BITVECTOR_TYPE, t)
+    # Determine m
+    m = t.bitwidth
+    condition = m > i and i >= j and j >= 0
+    if not condition:
+        raise UnknownOperator(f"m > i >= j >= 0 must hold for {expr.op}")
+    # Return BitVec n
+    n = i - j + 1
+    return BITVECTOR_TYPE(n)
+
+
+def typecheck_bv_extend_ops(expr, ctxt):
+    """
+    ((_ zero_extend i) (_ BitVec m) (_ BitVec m+i))
+    ((_ sign_extend i) (_ BitVec m) (_ BitVec m+i))
+    """
+    # Determine i
+    i = None
+    try:
+        i = int(expr.op.replace("(", "").replace(")", "").split(" ")[-1])
+    except Exception:
+        raise UnknownOperator(expr.op)
+    # Ensure BitVec type
+    arg = expr.subterms[0]
+    t = typecheck_expr(arg, ctxt)
+    if not isinstance(t, BITVECTOR_TYPE):
+        raise TypeCheckError(expr, arg, BITVECTOR_TYPE, t)
+    # Determine m
+    m = t.bitwidth
+    # Return BitVec m+i
+    return BITVECTOR_TYPE(m + i)
+
+
 def typecheck_bv_unary(expr, ctxt):
     """
     (op1 (_ BitVec m) (_ BitVec m))
@@ -569,29 +643,68 @@ def typecheck_bv_binary(expr, ctxt):
     """
     (op2 (_ BitVec m) (_ BitVec m) (_ BitVec m))
     """
-    arg1, _ = expr.subterms[0], expr.subterms[1]
-    t1 = typecheck_expr(expr.subterms[0], ctxt)
-    t2 = typecheck_expr(expr.subterms[1], ctxt)
-    if not isinstance(t1, BITVECTOR_TYPE) or\
-       not isinstance(t2, BITVECTOR_TYPE):
-        expected = "[" + str(BITVECTOR_TYPE) + "," + str(BITVECTOR_TYPE) + "]"
+    arg1, arg2 = expr.subterms[0], expr.subterms[1]
+    t1 = typecheck_expr(arg1, ctxt)
+    t2 = typecheck_expr(arg2, ctxt)
+    ok1 = isinstance(t1, BITVECTOR_TYPE)
+    ok2 = isinstance(t2, BITVECTOR_TYPE) and t1.bitwidth == t2.bitwidth
+    if not ok1 or not ok2:
+        expected_bitwidth = t1.bitwidth if ok1 else None
+        faulty = arg2 if ok1 else arg1
+        expected = "["\
+            + str(BITVECTOR_TYPE(expected_bitwidth))\
+            + "," + str(BITVECTOR_TYPE(expected_bitwidth))\
+            + "]"
         actual = "[" + str(t1) + "," + str(t2) + "]"
-        raise TypeCheckError(expr, arg1, expected, actual)
+        raise TypeCheckError(expr, faulty, expected, actual)
     return BITVECTOR_TYPE(t1.bitwidth)
+
+
+def typecheck_bv_left_associative(expr, ctxt):
+    """
+    Left-associative operators such as
+    (bvxor s_1 s_2 ... s_n)
+    """
+    if len(expr.subterms) < 1:
+        raise UnknownOperator(f"{expr.op} used without operands")
+    # Determine all types
+    types = [typecheck_expr(e, ctxt) for e in expr.subterms]
+    # Determine type correctness
+    for i in range(len(types)):
+        if not isinstance(types[i], BITVECTOR_TYPE):
+            raise TypeCheckError(
+                expr,
+                expr.subterms[i],
+                str(BITVECTOR_TYPE),
+                str(types[i]))
+    # Ensure bitwidths match
+    for i in range(1, len(types)):
+        if types[i].bitwidth != types[i - 1].bitwidth:
+            raise TypeCheckError(
+                expr,
+                expr.subterms[i],
+                str(BITVECTOR_TYPE(types[i - 1].bitwidth)),
+                str(types[i]))
+    return BITVECTOR_TYPE(types[0].bitwidth)
 
 
 def typecheck_binary_bool_rt(expr, ctxt):
     """
     (bvult (_ BitVec m) (_ BitVec m) Bool)
     (bvule (_ BitVec m) (_ BitVec m) Bool)
+    (bvugt (_ BitVec m) (_ BitVec m) Bool)
+    (bvuge (_ BitVec m) (_ BitVec m) Bool)
     (bvslt (_ BitVec m) (_ BitVec m) Bool)
+    (bvsle (_ BitVec m) (_ BitVec m) Bool)
+    (bvsgt (_ BitVec m) (_ BitVec m) Bool)
+    (bvsge (_ BitVec m) (_ BitVec m) Bool)
     """
     arg1, arg2 = expr.subterms[0], expr.subterms[1]
     t1 = typecheck_expr(expr.subterms[0], ctxt)
     t2 = typecheck_expr(expr.subterms[1], ctxt)
 
-    if not isinstance(arg1, BITVECTOR_TYPE) or\
-       not isinstance(arg2, BITVECTOR_TYPE):
+    if not isinstance(t1, BITVECTOR_TYPE) or\
+       not isinstance(t2, BITVECTOR_TYPE):
         raise TypeCheckError(
             expr, [arg1, arg2], [BITVECTOR_TYPE, BITVECTOR_TYPE], [t1, t2]
         )
@@ -603,22 +716,34 @@ def typecheck_bv_ops(expr, ctxt):
         return typecheck_bv_concat(expr, ctxt)
     if expr.op in [BVNOT, BVNEG]:
         return typecheck_bv_unary(expr, ctxt)
+    if expr.op == BVXOR:
+        return typecheck_bv_left_associative(expr, ctxt)
     if expr.op in [
         BVAND,
+        BVNAND,
         BVOR,
-        BVXOR,
+        BVNOR,
+        # BVXOR,
+        BVXNOR,
         BVADD,
         BVSUB,
         BVMUL,
         BVUDIV,
         BVUREM,
+        BVSREM,
         BVSHL,
         BVLSHR,
         BVASHR,
         BVSDIV,
+        BVSMOD,
     ]:
         return typecheck_bv_binary(expr, ctxt)
-    if expr.op in [BVULT, BVULE, BVSLT, BVSGT]:
+    if expr.op == BVCOMP:
+        # Ensure correct types
+        typecheck_bv_binary(expr, ctxt)
+        # Resulting bitvector has width 1 instead of m
+        return BITVECTOR_TYPE(1)
+    if expr.op in [BVULT, BVULE, BVUGT, BVUGE, BVSLT, BVSLE, BVSGT, BVSGE]:
         return typecheck_binary_bool_rt(expr, ctxt)
 
 
@@ -773,6 +898,7 @@ def typecheck_quantifiers(expr, ctxt):
 
 
 def typecheck_core(expr, ctxt):
+    assert isinstance(expr, Term)
     if expr.op == NOT:
         return typecheck_not(expr, ctxt)
     if expr.op in [AND, OR, XOR, IMPLIES]:
@@ -874,12 +1000,14 @@ def annotate(f, expr, ctxt):
     ctxt: context
     :returns: type of expr
     """
+    assert isinstance(expr, Term)
     t = f(expr, ctxt)
     expr.type = t
     return t
 
 
-def typecheck_expr(expr, ctxt=Context({}, {})):
+def typecheck_expr(expr: Term, ctxt=Context({}, {})):
+    assert isinstance(expr, Term)
     if expr.is_const:
         return expr.type
     if expr.is_var or expr.is_indexed_id:
@@ -917,13 +1045,21 @@ def typecheck_expr(expr, ctxt=Context({}, {})):
         if TO_FP_UNSIGNED in expr.op:
             return annotate(typecheck_to_fp_unsigned, expr, ctxt)
 
-        # BV infix ops
-        if (
-            BV_EXTRACT in expr.op
-            or BV_ZERO_EXTEND in expr.op
-            or BV_SIGN_EXTEND in expr.op
-        ):
+        # BV repeat
+        if BV_REPEAT in expr.op:
+            return annotate(typecheck_bv_repeat, expr, ctxt)
+
+        # BV rotate
+        if BV_ROTATE_LEFT in expr.op or BV_ROTATE_RIGHT in expr.op:
             return annotate(typecheck_bv_unary, expr, ctxt)
+
+        # BV extract
+        if BV_EXTRACT in expr.op:
+            return annotate(typecheck_bv_extract, expr, ctxt)
+
+        # BV extend ops
+        if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
+            return annotate(typecheck_bv_extend_ops, expr, ctxt)
 
         key = expr.op.__str__()
         if key in ctxt.globals:
@@ -950,5 +1086,6 @@ def typecheck(formula, glob):
     ctxt = Context(glob, {})
     for cmd in formula.commands:
         if isinstance(cmd, Assert):
+            assert isinstance(cmd.term, Term)
             typecheck_expr(cmd.term, ctxt)
     return ctxt

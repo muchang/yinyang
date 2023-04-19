@@ -116,7 +116,7 @@ class AstVisitor(SMTLIBv2Visitor):
             return Eval(self.visitTerm(ctx.term()[0], {}))
         if ctx.cmd_declareConst():
             var = self.visitSymbol(ctx.symbol()[0])
-            self.global_vars[var] = self.visitSort(ctx.sort()[0])
+            self.global_vars[var] = sort2type(self.visitSort(ctx.sort()[0]))
             decl = DeclareConst(
                 self.visitSymbol(ctx.symbol()[0]),
                 sort2type(self.visitSort(ctx.sort()[0]))
@@ -306,9 +306,13 @@ class AstVisitor(SMTLIBv2Visitor):
         if ctx.decimal():
             return ctx.getText().encode("utf-8").decode("utf-8"), REAL_TYPE
         if ctx.hexadecimal():
-            return ctx.getText().encode("utf-8").decode("utf-8"), INTEGER_TYPE
+            s = ctx.getText().encode("utf-8").decode("utf-8")
+            bitwidth = (len(s) - 2) * 4
+            return s, BITVECTOR_TYPE(bitwidth)
         if ctx.binary():
-            return ctx.getText().encode("utf-8").decode("utf-8"), INTEGER_TYPE
+            s = ctx.getText().encode("utf-8").decode("utf-8")
+            bitwidth = len(s) - 2
+            return s, BITVECTOR_TYPE(bitwidth)
         if ctx.string():
             return ctx.getText().encode("utf-8").decode("utf-8"), STRING_TYPE
         if ctx.b_value():

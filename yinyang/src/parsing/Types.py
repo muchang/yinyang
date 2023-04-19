@@ -61,7 +61,7 @@ def type2ffg(typ):
         return BITVECTOR_OPTION
     else:
         # If the type is not supported by ffg.
-        return None    
+        return None
 
 
 def sort2type(sort):
@@ -71,8 +71,8 @@ def sort2type(sort):
         return FP_TYPE(eb, sb)
 
     if "BitVec" in sort:
-        bitwith = int(sort.split(" ")[2][:-1])
-        return BITVECTOR_TYPE(bitwith)
+        bitwidth = int(sort.split(" ")[2][:-1])
+        return BITVECTOR_TYPE(bitwidth)
     return sort
 
 
@@ -248,21 +248,31 @@ BV_CONCAT = "concat"
 BVNOT = "bvnot"
 BVNEG = "bvneg"
 BVAND = "bvand"
+BVNAND = "bvnand"
 BVOR = "bvor"
+BVNOR = "bvnor"
 BVXOR = "bvxor"
+BVXNOR = "bvxnor"
 BVADD = "bvadd"
 BVSUB = "bvsub"
 BVMUL = "bvmul"
 BVUDIV = "bvudiv"
 BVUREM = "bvurem"
+BVSREM = "bvsrem"
 BVSHL = "bvshl"
 BVLSHR = "bvlshr"
 BVASHR = "bvashr"
 BVULT = "bvult"
 BVULE = "bvule"
+BVUGT = "bvugt"
+BVUGE = "bvuge"
 BVSLT = "bvslt"
+BVSLE = "bvsle"
 BVSGT = "bvsgt"
+BVSGE = "bvsge"
 BVSDIV = "bvsdiv"
+BVSMOD = "bvsmod"
+BVCOMP = "bvcomp"  # returns (_ BitVec 1)
 
 
 BV_OPS = [
@@ -270,22 +280,45 @@ BV_OPS = [
     BVNOT,
     BVNEG,
     BVAND,
+    BVNAND,
     BVOR,
+    BVNOR,
     BVXOR,
+    BVXNOR,
     BVADD,
     BVSUB,
     BVMUL,
     BVUDIV,
     BVUREM,
+    BVSREM,
     BVSHL,
     BVASHR,
     BVLSHR,
     BVULT,
     BVULE,
+    BVUGT,
+    BVUGE,
     BVSLT,
+    BVSLE,
     BVSGT,
+    BVSGE,
     BVSDIV,
+    BVSMOD,
+    BVCOMP
 ]
+
+"""
+Special bitvector operations
+
+    ((_ repeat i) (_ BitVec m) (_ BitVec i*m))
+    ((_ rotate_left i) (_ BitVec m) (_ BitVec m))
+    ((_ rotate_right i) (_ BitVec m) (_ BitVec m))
+
+"""
+
+BV_REPEAT = "(_ repeat"
+BV_ROTATE_LEFT = "(_ rotate_left"
+BV_ROTATE_RIGHT = "(_ rotate_right"
 
 """
 All function symbols with declaration of the form
