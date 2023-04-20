@@ -509,10 +509,12 @@ def typecheck_select(expr, ctxt):
     """
     array_type = typecheck_expr(expr.subterms[0], ctxt)
     if not isinstance(array_type, ARRAY_TYPE):
-        raise TypeCheckError(expr,
-                             expr,
-                             ARRAY_TYPE,
-                             f"Meta-language type: {type(array_type)}, str-repr.: {array_type}")
+        raise TypeCheckError(
+            expr,
+            expr,
+            ARRAY_TYPE,
+            f"Meta-language type: {type(array_type)}, str-repr.: {array_type}"
+        )
     x_type = typecheck_expr(expr.subterms[1], ctxt)
     if x_type != array_type.index_type:
         raise TypeCheckError(expr, expr, array_type.index_type, x_type)
@@ -525,8 +527,12 @@ def typecheck_store(expr, ctxt):
     """
     array_type = typecheck_expr(expr.subterms[0], ctxt)
     if not isinstance(array_type, ARRAY_TYPE):
-        raise TypeCheckError(expr, expr, ARRAY_TYPE,
-                f"Meta-language type: {type(array_type)}, str-repr.: {array_type}")
+        raise TypeCheckError(
+            expr,
+            expr,
+            ARRAY_TYPE,
+            f"Meta-language type: {type(array_type)}, str-repr.: {array_type}"
+        )
     x_type = typecheck_expr(expr.subterms[1], ctxt)
     y_type = typecheck_expr(expr.subterms[2], ctxt)
     if x_type != array_type.index_type or y_type != array_type.payload_type:
