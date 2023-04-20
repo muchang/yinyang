@@ -54,4 +54,4 @@ print(args.smtfile)
 formula = parse_file(args.smtfile)
 transformer = DafnyTransformer(formula, args)
 with open(args.dafnyfile, "w") as f:
-    f.write(transformer.generate_method())
+    f.write(str(transformer))

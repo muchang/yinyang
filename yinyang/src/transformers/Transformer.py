@@ -31,7 +31,35 @@ class Transformer:
         pass
 
 class CodeBlock:
-    def __init__(self, tmpid, args):
+    def __init__(self, tmpid, args, identifier=None):
         self.tmpid = tmpid
-        self.identifier = "tmp" + str(self.tmpid)
         self.args = args
+        self.customizedID = False
+        if identifier is None:
+            self.identifier = "tmp_%s" % self.tmpid
+            self.tmpid += 1
+        else:
+            self.customizedID = True
+            self.identifier = identifier
+
+class Context:
+    def __init__(self, context=None):
+        if context is None:
+            self.free_vars = {}
+            self.let_vars = {}
+        else:
+            self.free_vars = context.free_vars
+            self.let_vars = context.let_vars
+    
+    def add_context(self, context: 'Context'):
+        self.free_vars.update(context.free_vars)
+        self.let_vars.update(context.let_vars)
+
+class Environment:
+    def __init__(self):
+        self.methods = []
+        self.global_vars = {}
+    
+    def add_environment(self, env: 'Environment'):
+        self.methods.extend(env.methods)
+        self.global_vars.update(env.global_vars)
