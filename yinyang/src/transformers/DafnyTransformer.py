@@ -140,6 +140,7 @@ class DafnyCodeBlock(CodeBlock):
             for subterm in self.expression.subterms:
                 div = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(div)
+                self.statements.append("assume %s != 0;" % div.identifier)
                 self.assignee += str(div.identifier) + " / "
             self.assignee = self.assignee[:-3]
         
@@ -156,6 +157,7 @@ class DafnyCodeBlock(CodeBlock):
             for subterm in self.expression.subterms:
                 real_div = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(real_div)
+                self.statements.append("assume %s != 0.0;" % real_div.identifier)
                 self.assignee += str(real_div.identifier) + " / "
             self.assignee = self.assignee[:-3]
         
@@ -172,7 +174,7 @@ class DafnyCodeBlock(CodeBlock):
             if self.args != None and self.args.real_support and str.isdigit(str(self.expression)) and '.' not in str(self.expression):
                 self.assignee = str(self.expression)+".0"
             else:
-                self.assignee = str(self.expression).replace("!", "").replace("$", "").replace(".", "")                 
+                self.assignee = str(self.expression).replace("!", "").replace("$", "")
 
         elif self.expression.op == AND:
             if len(self.expression.subterms) == 0:
@@ -413,7 +415,7 @@ class DafnyAndBlock(DafnyCodeBlock):
             self.statements.append("var %s := false;" % self.identifier)
         condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.update_with(condition)
-        self.statements.append("if ( %s ) {" % condition.identifier)
+        self.statements.append("if (%s) {" % condition.identifier)
 
         if len(self.expression.subterms) == 1:
             self.statements.append("%s := true;" % self.identifier)
@@ -461,24 +463,15 @@ class DafnyOrBlock(DafnyCodeBlock):
             self.statements.append("var %s := false;" % self.identifier)
         condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.update_with(condition)
-        self.statements.append("if ( %s ) {" % condition.identifier)
+        self.statements.append("if (%s) {" % condition.identifier)
         self.statements.append("%s := true;" % self.identifier)
         self.statements.append("}")
 
         if len(self.expression.subterms) != 1:
             self.statements.append("else {")
-            subblock = DafnyOrBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[1:], identifier=self.identifier)
+            subblock = DafnyOrBlock(self.tmpid, self.env, self.context, self.args, Term(op="or", subterms=self.expression.subterms[1:]), identifier=self.identifier)
             self.update_with(subblock)
             self.statements.append("}")
-
-
-        if len(self.expression.subterms) == 1:
-            self.statements.append("%s := true;" % self.identifier)
-        else:
-            self.statements
-            subblock = DafnyOrBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[1:], identifier=self.identifier)
-            self.update_with(subblock)
-        self.statements.append("}")
     
     def __str__(self):
         return "".join(self.statements)
@@ -534,11 +527,11 @@ class DafnyXORBlock(DafnyCodeBlock):
             self.statements.append("var %s := false;" % self.identifier)
         condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.update_with(condition)
-        self.statements.append("if ( %s ) {" % condition.identifier)
+        self.statements.append("if (%s) {" % condition.identifier)
         if len(self.expression.subterms) == 1:
             self.statements.append("%s := %s;" % (self.identifier, self.get_truth(True)))
         else:
-            subblock = DafnyXORBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[1:], identifier=self.identifier, truth=not self.truth)
+            subblock = DafnyXORBlock(self.tmpid, self.env, self.context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=not self.truth)
             self.update_with(subblock)
         self.statements.append("}")
 
@@ -546,7 +539,7 @@ class DafnyXORBlock(DafnyCodeBlock):
         if len(self.expression.subterms) == 1:
             self.statements.append("%s := %s;" % (self.identifier, self.get_truth(False)))
         else:
-            subblock = DafnyXORBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[1:], identifier=self.identifier, truth=self.truth)
+            subblock = DafnyXORBlock(self.tmpid, self.env, self.context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=self.truth)
             self.update_with(subblock)
         self.statements.append("}")
 
@@ -698,11 +691,11 @@ class DafnyTransformer(Transformer):
         self.context = DafnyContext()
         self.env = DafnyEnvironment()
         self.context.get_free_vars_from(self.free_variables)
-        self.methods = []
+        self.assert_methods = []
         for assert_cmd in self.assert_cmds:
             method = DafnyMethod(self.tmpid, self.env, self.context, self.args, assert_cmd)
             self.update_with(method)
-            self.methods.append(method)
+            self.assert_methods.append(method)
         
     def update_with(self, method: 'DafnyMethod'):
         self.tmpid = method.tmpid
@@ -710,13 +703,18 @@ class DafnyTransformer(Transformer):
         self.context = method.context
     
     def __str__(self) -> str:
+        assert_identifiers = []
         text = ""
         for method in self.env.methods:
             text += method
         text += "\nmethod main "
         text += self.generate_args() + " {\n"
-        for method in self.methods:
-            text += method.generate_call() + ";\n"
+        for method in self.assert_methods:
+            assert_var_identifier = "assert_" + str(method.identifier)
+            text += "var %s := %s;\n" % (assert_var_identifier, method.generate_call())
+            assert_identifiers.append(assert_var_identifier)
+        text += "var oracle := " + " && ".join(assert_identifiers) + ";\n"
+        text += "assert (! oracle);\n"
         text += "}"
         return text
     
@@ -752,12 +750,14 @@ class DafnyMethod(CodeBlock):
         self.env = env
         self.context = context
         self.expression = expression
-        assertblock = DafnyAssertBlock(self.tmpid, self.env, self.context, self.args, self.expression.term)
+        assertblock = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.term)
         self.update_with(assertblock)
         self.body = str(assertblock)
+        self.return_var = assertblock.identifier
+        self.return_type = "bool"
         self.env.methods.append(str(self))
     
-    def update_with(self, assertblock: 'DafnyAssertBlock'):
+    def update_with(self, assertblock: DafnyCodeBlock):
         self.tmpid = assertblock.tmpid
         self.env = assertblock.env
         self.context = assertblock.context
@@ -765,10 +765,11 @@ class DafnyMethod(CodeBlock):
     def __str__(self) -> str:
         args_text = self.generate_args()
         method_text = """
-method %s %s {
+method %s %s returns (return_var: %s){
 %s
+return_var := %s;
 }
-        """ % (self.identifier, args_text, self.body)
+        """ % (self.identifier, args_text, self.return_type, self.body, self.return_var)
         return method_text
 
     def generate_args(self):
