@@ -290,11 +290,11 @@ class DafnyFuzzer(Fuzzer):
 
                 # Check whether the solver crashed with a segfault.
                 if exitcode == -signal.SIGSEGV or exitcode == 245:
-                    self.statistic.crashes += 1
-                    path = self.report(
-                        script, "segfault", solver_cli, stdout, stderr
-                    )
-                    log_segfault_trigger(self.args, path, iteration)
+                    # self.statistic.crashes += 1
+                    # path = self.report(
+                    #     script, "segfault", solver_cli, stdout, stderr
+                    # )
+                    # log_segfault_trigger(self.args, path, iteration)
                     return (True, scratchfile)
 
                 # Check whether the solver timed out.
@@ -331,7 +331,7 @@ class DafnyFuzzer(Fuzzer):
         formula = parse_file(scratchfile)
         transformer = DafnyTransformer(formula, self.args)
         with open(scratchfile+".dfy", "w") as f:
-            f.write(transformer.generate_method())
+            f.write(str(transformer))
 
         dafny_cli = self.args.SOLVER_CLIS[1]
         dafny = Dafny(dafny_cli)
@@ -348,7 +348,7 @@ class DafnyFuzzer(Fuzzer):
                 self.statistic.effective_calls += 1
                 self.statistic.crashes += 1
                 path = self.report(
-                    script, "segfault", dafny_cli, dafny_stdout, dafny_stderr
+                    script, transformer, "segfault", dafny_cli, dafny_stdout, dafny_stderr
                 )
                 log_segfault_trigger(self.args, path, iteration)
                 return (True, scratchfile)
@@ -392,6 +392,7 @@ class DafnyFuzzer(Fuzzer):
                     ref_stderr = reference[2]
                     path = self.report_diff(
                         script,
+                        transformer,
                         "incorrect",
                         ref_cli,
                         ref_stdout,
@@ -405,7 +406,7 @@ class DafnyFuzzer(Fuzzer):
                     # Produce a bug report if the query result differs
                     # from the pre-set oracle (yinyang).
                     path = self.report(
-                        script, "incorrect", dafny_cli,
+                        script, transformer, "incorrect", dafny_cli,
                         dafny_stdout, dafny_stderr
                     )
 
@@ -414,10 +415,10 @@ class DafnyFuzzer(Fuzzer):
             
         return (True, scratchfile)  # Continue to next seed.
 
-    def report(self, script, bugtype, cli, stdout, stderr):
+    def report(self, script, dafny, bugtype, cli, stdout, stderr):
         plain_cli = plain(cli)
         # format: <solver><{crash,wrong,invalid_model}><seed>.<random-str>.smt2
-        report = "%s/%s-%s-%s-%s.smt2" % (
+        report = "%s/%s-%s-%s-%s" % (
             self.args.bugsfolder,
             bugtype,
             plain_cli,
@@ -425,19 +426,20 @@ class DafnyFuzzer(Fuzzer):
             random_string(),
         )
         try:
-            with open(report, "w") as report_writer:
+            with open(report+".smt", "w") as report_writer:
                 report_writer.write(script.__str__())
         except Exception:
             logging.error("error: couldn't copy scratchfile to bugfolder.")
             exit(ERR_EXHAUSTED_DISK)
-        logpath = "%s/%s-%s-%s-%s.output" % (
-            self.args.bugsfolder,
-            bugtype,
-            plain_cli,
-            escape("-".join(self.currentseeds)),
-            random_string(),
-        )
-        with open(logpath, "w") as log:
+        
+        try:
+            with open(report+".dfy", "w") as report_writer:
+                report_writer.write(dafny.__str__())
+        except Exception:
+            logging.error("error: couldn't copy scratchfile to bugfolder.")
+            exit(ERR_EXHAUSTED_DISK)
+
+        with open(report+".log", "w") as log:
             log.write("command: " + cli + "\n")
             log.write("stderr:\n")
             log.write(stderr)
@@ -448,6 +450,7 @@ class DafnyFuzzer(Fuzzer):
     def report_diff(
         self,
         script,
+        dafny,
         bugtype,
         ref_cli,
         ref_stdout,
@@ -458,7 +461,7 @@ class DafnyFuzzer(Fuzzer):
     ):
         plain_cli = plain(sol_cli)
         # format: <solver><{crash,wrong,invalid_model}><seed>.<random-str>.smt2
-        report = "%s/%s-%s-%s-%s.smt2" % (
+        report = "%s/%s-%s-%s-%s" % (
             self.args.bugsfolder,
             bugtype,
             plain_cli,
@@ -466,20 +469,20 @@ class DafnyFuzzer(Fuzzer):
             random_string(),
         )
         try:
-            with open(report, "w") as report_writer:
+            with open(report+".smt2", "w") as report_writer:
                 report_writer.write(script.__str__())
         except Exception:
             logging.error("error: couldn't copy scratchfile to bugfolder.")
             exit(ERR_EXHAUSTED_DISK)
+        
+        try: 
+            with open(report+".dfy", "w") as report_writer:
+                report_writer.write(dafny.__str__())
+        except Exception:
+            logging.error("error: couldn't copy scratchfile to bugfolder.")
+            exit(ERR_EXHAUSTED_DISK)
 
-        logpath = "%s/%s-%s-%s-%s.output" % (
-            self.args.bugsfolder,
-            bugtype,
-            plain_cli,
-            escape("-".join(self.currentseeds)),
-            random_string(),
-        )
-        with open(logpath, "w") as log:
+        with open(report+".log", "w") as log:
             log.write("*** REFERENCE \n")
             log.write("command: " + ref_cli + "\n")
             log.write("stderr:\n")
