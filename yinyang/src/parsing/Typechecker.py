@@ -52,6 +52,7 @@ from yinyang.src.parsing.Types import (
 )
 
 from yinyang.src.parsing.Ast import Assert, Term
+from yinyang.src.parsing.TimeoutDecorator import exit_after
 
 
 class Context:
@@ -1086,7 +1087,7 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
         return annotate(typecheck_label, expr, ctxt)
     return UNKNOWN
 
-
+@exit_after(30)
 def typecheck(formula, glob):
     """
     :formula: Script object representing formula
