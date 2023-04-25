@@ -1049,7 +1049,7 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
         if expr.op in BV_OPS:
             return annotate(typecheck_bv_ops, expr, ctxt)
 
-        # Handle operators that are represented as strings
+        # Handle operators which are represented as strings
         if isinstance(expr.op, str):
             # FP infix ops
             if TO_FP in expr.op:
