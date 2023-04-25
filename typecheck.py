@@ -14,7 +14,7 @@ def typecheck_smt2(fn):
 
     # Make sure parsing did not time out or crash
     if script is None:
-        print(f"[{sys.argv[1]}] Typechecking exceeded time limit or was interrupted")
+        print(f"[{sys.argv[1]}] Parsing exceeded time limit or was interrupted")
         return
     
     # Attempt typechecking, beware of time limit
