@@ -13,11 +13,15 @@ def typecheck_smt2(fn):
     script, glob = parse_file(fn, silent=True)
 
     # Make sure parsing did not time out or crash
-    if script is not None:
-        try:
-            typecheck(script, glob)
-        except KeyboardInterrupt:
-            print(f"[{sys.argv[1]}] Typechecking timed out or was interrupted")
+    if script is None:
+        print(f"[{sys.argv[1]}] Typechecking exceeded time limit or was interrupted")
+        return
+    
+    # Attempt typechecking, beware of time limit
+    try:
+        typecheck(script, glob, 30)
+    except KeyboardInterrupt:
+        print(f"[{sys.argv[1]}] Typechecking exceeded time limit or was interrupted")
 
 if __name__ == "__main__":
     if len(sys.argv) == 3:

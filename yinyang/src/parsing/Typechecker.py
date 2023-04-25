@@ -1092,16 +1092,20 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
         return annotate(typecheck_label, expr, ctxt)
     return UNKNOWN
 
-@exit_after(30)
-def typecheck(formula, glob):
+
+def typecheck(formula, glob, timeout_limit=30):
     """
     :formula: Script object representing formula
     :glob: glob variables for formula returned by parser
     :returns: context object ctxt
     """
-    ctxt = Context(glob, {})
-    for cmd in formula.commands:
-        if isinstance(cmd, Assert):
-            assert isinstance(cmd.term, Term)
-            typecheck_expr(cmd.term, ctxt)
-    return ctxt
+    @exit_after(timeout_limit)
+    def _typecheck(formula, glob):
+        ctxt = Context(glob, {})
+        for cmd in formula.commands:
+            if isinstance(cmd, Assert):
+                assert isinstance(cmd.term, Term)
+                typecheck_expr(cmd.term, ctxt)
+        return ctxt
+
+    return _typecheck(formula, glob)
