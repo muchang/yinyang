@@ -5,7 +5,8 @@
 ### Configuration
 
 Benchmarks: QF\_BV, BV, incremental/QF\_BV, incremental/BV
-Timeout/size limit: 30s/none
+Timeouts: 30s (parsing), none (typechecking)
+Source size limit: none
 Hardware: HP HP EliteBook x360 1040 G6
 Processor: Intel® Core™ i7-8565U (1.80 GHz × 8)
 Memory: 16.0GB
