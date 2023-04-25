@@ -1049,34 +1049,39 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
         if expr.op in BV_OPS:
             return annotate(typecheck_bv_ops, expr, ctxt)
 
-        # FP infix ops
-        if TO_FP in expr.op:
-            return annotate(typecheck_to_fp, expr, ctxt)
+        # Handle operators that are represented as strings
+        if isinstance(expr.op, str):
+            # FP infix ops
+            if TO_FP in expr.op:
+                return annotate(typecheck_to_fp, expr, ctxt)
 
-        if TO_FP_UNSIGNED in expr.op:
-            return annotate(typecheck_to_fp_unsigned, expr, ctxt)
+            if TO_FP_UNSIGNED in expr.op:
+                return annotate(typecheck_to_fp_unsigned, expr, ctxt)
 
-        # BV repeat
-        if BV_REPEAT in expr.op:
-            return annotate(typecheck_bv_repeat, expr, ctxt)
+            # BV repeat
+            if BV_REPEAT in expr.op:
+                return annotate(typecheck_bv_repeat, expr, ctxt)
 
-        # BV rotate
-        if BV_ROTATE_LEFT in expr.op or BV_ROTATE_RIGHT in expr.op:
-            return annotate(typecheck_bv_unary, expr, ctxt)
+            # BV rotate
+            if BV_ROTATE_LEFT in expr.op or BV_ROTATE_RIGHT in expr.op:
+                return annotate(typecheck_bv_unary, expr, ctxt)
 
-        # BV extract
-        if BV_EXTRACT in expr.op:
-            return annotate(typecheck_bv_extract, expr, ctxt)
+            # BV extract
+            if BV_EXTRACT in expr.op:
+                return annotate(typecheck_bv_extract, expr, ctxt)
 
-        # BV extend ops
-        if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
-            return annotate(typecheck_bv_extend_ops, expr, ctxt)
+            # BV extend ops
+            if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
+                return annotate(typecheck_bv_extend_ops, expr, ctxt)
 
+        # Handle operators which are not represented as strings,
+        # or which did not match any of the above (e.g. functions)
         key = expr.op.__str__()
         if key in ctxt.globals:
             t = ctxt.globals[key].split(" ")[-1]
             expr.type = t
             return t
+        
         raise UnknownOperator(expr.op)
 
     elif expr.quantifier:
