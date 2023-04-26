@@ -74,6 +74,11 @@ def sort2type(sort):
         bitwidth = int(sort.split(" ")[2][:-1])
         return BITVECTOR_TYPE(bitwidth)
 
+    """
+    if sort == "Int":
+        return INTEGER_TYPE
+    """
+
     if sort.startswith("(Array "):
         types = sort[1:-1].split(" ")
         assert len(types) == 3

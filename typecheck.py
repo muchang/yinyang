@@ -18,9 +18,8 @@ def typecheck_smt2(fn):
         return
     
     # Attempt typechecking, beware of time limit
-    try:
-        typecheck(script, glob, 30)
-    except KeyboardInterrupt:
+    ctxt = typecheck(script, glob, 30)
+    if ctxt is None:
         print(f"[{sys.argv[1]}] Typechecking exceeded time limit or was interrupted")
 
 if __name__ == "__main__":

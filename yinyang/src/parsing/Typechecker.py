@@ -92,7 +92,7 @@ class TypeCheckError(Exception):
 
 class UnknownOperator(Exception):
     def __init__(self, op):
-        self.message = "unknown function/constant " + op
+        self.message = "unknown function/constant " + str(op)
         # sys.tracebacklimit = 0
         super().__init__(self.message)
 
@@ -514,7 +514,7 @@ def typecheck_select(expr, ctxt):
             expr,
             expr,
             ARRAY_TYPE,
-            f"Meta-language type: {type(array_type)}, str-repr.: {array_type}"
+            f"Meta-language type: {type(array_type)}, as str: '{array_type}'"
         )
     x_type = typecheck_expr(expr.subterms[1], ctxt)
     if x_type != array_type.index_type:
@@ -1078,9 +1078,28 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
         # or which did not match any of the above (e.g. functions)
         key = expr.op.__str__()
         if key in ctxt.globals:
-            t = ctxt.globals[key].split(" ")[-1]
-            expr.type = t
-            return t
+            signature: str = ctxt.globals[key].strip()
+            # Careful: do we have parentheses?!
+            par_level = 0
+            for x in range(len(signature)):
+                i = len(signature) - 1 - x
+                c = signature[i]
+                # Go through the string backwards
+                if c == ")":
+                    par_level += 1
+                elif c == "(":
+                    par_level -= 1
+                # Stop if all parentheses have cancelled out
+                # or if we have come across some whitespace
+                if (
+                    par_level == 0 and
+                    (c.isspace() or c in ["(", ")"] or i == 0)
+                ):
+                    t = signature[i:].strip()
+                    assert len(t) > 0
+                    t = sort2type(t)
+                    expr.type = t
+                    return t
         
         raise UnknownOperator(expr.op)
 
