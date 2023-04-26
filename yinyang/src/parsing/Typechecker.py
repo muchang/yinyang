@@ -1108,4 +1108,8 @@ def typecheck(formula, glob, timeout_limit=30):
                 typecheck_expr(cmd.term, ctxt)
         return ctxt
 
-    return _typecheck(formula, glob)
+    try:
+        return _typecheck(formula, glob)
+    except KeyboardInterrupt:
+        print("Typechecker timed out or was interrupted.")
+        return None
