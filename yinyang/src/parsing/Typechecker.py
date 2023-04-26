@@ -1090,7 +1090,7 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
                 elif c == "(":
                     par_level -= 1
                 # Stop if all parentheses have cancelled out
-                # or if we have come across some whitespace
+                # and we have come across some whitespace
                 if (
                     par_level == 0 and
                     (c.isspace() or c in ["(", ")"] or i == 0)
