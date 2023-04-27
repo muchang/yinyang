@@ -165,7 +165,7 @@ def typecheck_eq(expr, ctxt=[]):
     assert isinstance(expr, Term)
     typ = typecheck_expr(expr.subterms[0], ctxt)
     for term in expr.subterms[1:]:
-        assert isinstance(term, Term)
+        assert isinstance(term, Term)  # TODO: user-defined datatypes
         t = typecheck_expr(term, ctxt)
         if t != typ:
             if not (is_subtype(t, typ) or is_subtype(typ, t)):
@@ -1082,15 +1082,14 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
             # Careful: do we have parentheses?!
             par_level = 0
             for x in range(len(signature)):
+                # Go through the string backwards
                 i = len(signature) - 1 - x
                 c = signature[i]
-                # Go through the string backwards
                 if c == ")":
                     par_level += 1
                 elif c == "(":
                     par_level -= 1
-                # Stop if all parentheses have cancelled out
-                # and we have come across some whitespace
+                # Stop if all parentheses have cancelled each other out
                 if (
                     par_level == 0 and
                     (c.isspace() or c in ["(", ")"] or i == 0)
