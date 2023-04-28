@@ -1,3 +1,3 @@
 #! /bin/bash
-directory="scripts/QF_BV"
-find $directory -name "*.smt2" -size -2k -print0 | parallel -0 -j8 --eta --progress --bar ./typecheck.py {} --moderatelyverbose
+directory="scripts/QF_AX"
+find $directory -iname "*.smt2" -print0 | parallel -0 -j8 --eta --progress --bar ./typecheck.py {} --moderatelyverbose

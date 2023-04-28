@@ -52,6 +52,7 @@ from yinyang.src.parsing.Types import (
 )
 
 from yinyang.src.parsing.Ast import Assert, Term
+from yinyang.src.parsing.TimeoutDecorator import exit_after
 
 
 class Context:
@@ -91,7 +92,7 @@ class TypeCheckError(Exception):
 
 class UnknownOperator(Exception):
     def __init__(self, op):
-        self.message = "unknown function/constant " + op
+        self.message = "unknown function/constant " + str(op)
         # sys.tracebacklimit = 0
         super().__init__(self.message)
 
@@ -164,7 +165,7 @@ def typecheck_eq(expr, ctxt=[]):
     assert isinstance(expr, Term)
     typ = typecheck_expr(expr.subterms[0], ctxt)
     for term in expr.subterms[1:]:
-        assert isinstance(term, Term)
+        assert isinstance(term, Term)  # TODO: user-defined datatypes
         t = typecheck_expr(term, ctxt)
         if t != typ:
             if not (is_subtype(t, typ) or is_subtype(typ, t)):
@@ -508,8 +509,13 @@ def typecheck_select(expr, ctxt):
     (select (Array X Y) X Y)
     """
     array_type = typecheck_expr(expr.subterms[0], ctxt)
-    if isinstance(array_type, ARRAY_TYPE):
-        raise TypeCheckError(expr, expr, ARRAY_TYPE, array_type)
+    if not isinstance(array_type, ARRAY_TYPE):
+        raise TypeCheckError(
+            expr,
+            expr,
+            ARRAY_TYPE,
+            f"Meta-language type: {type(array_type)}, as str: '{array_type}'"
+        )
     x_type = typecheck_expr(expr.subterms[1], ctxt)
     if x_type != array_type.index_type:
         raise TypeCheckError(expr, expr, array_type.index_type, x_type)
@@ -521,11 +527,16 @@ def typecheck_store(expr, ctxt):
     (store (Array X Y) X Y (Array X Y)))
     """
     array_type = typecheck_expr(expr.subterms[0], ctxt)
-    if isinstance(array_type, ARRAY_TYPE):
-        raise TypeCheckError(expr, expr, ARRAY_TYPE, array_type)
+    if not isinstance(array_type, ARRAY_TYPE):
+        raise TypeCheckError(
+            expr,
+            expr,
+            ARRAY_TYPE,
+            f"Meta-language type: {type(array_type)}, str-repr.: {array_type}"
+        )
     x_type = typecheck_expr(expr.subterms[1], ctxt)
     y_type = typecheck_expr(expr.subterms[2], ctxt)
-    if x_type != array_type.index_type and y_type != array_type.payload_type:
+    if x_type != array_type.index_type or y_type != array_type.payload_type:
         raise TypeCheckError(
             expr,
             expr,
@@ -1038,34 +1049,57 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
         if expr.op in BV_OPS:
             return annotate(typecheck_bv_ops, expr, ctxt)
 
-        # FP infix ops
-        if TO_FP in expr.op:
-            return annotate(typecheck_to_fp, expr, ctxt)
+        # Handle operators which are represented as strings
+        if isinstance(expr.op, str):
+            # FP infix ops
+            if TO_FP in expr.op:
+                return annotate(typecheck_to_fp, expr, ctxt)
 
-        if TO_FP_UNSIGNED in expr.op:
-            return annotate(typecheck_to_fp_unsigned, expr, ctxt)
+            if TO_FP_UNSIGNED in expr.op:
+                return annotate(typecheck_to_fp_unsigned, expr, ctxt)
 
-        # BV repeat
-        if BV_REPEAT in expr.op:
-            return annotate(typecheck_bv_repeat, expr, ctxt)
+            # BV repeat
+            if BV_REPEAT in expr.op:
+                return annotate(typecheck_bv_repeat, expr, ctxt)
 
-        # BV rotate
-        if BV_ROTATE_LEFT in expr.op or BV_ROTATE_RIGHT in expr.op:
-            return annotate(typecheck_bv_unary, expr, ctxt)
+            # BV rotate
+            if BV_ROTATE_LEFT in expr.op or BV_ROTATE_RIGHT in expr.op:
+                return annotate(typecheck_bv_unary, expr, ctxt)
 
-        # BV extract
-        if BV_EXTRACT in expr.op:
-            return annotate(typecheck_bv_extract, expr, ctxt)
+            # BV extract
+            if BV_EXTRACT in expr.op:
+                return annotate(typecheck_bv_extract, expr, ctxt)
 
-        # BV extend ops
-        if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
-            return annotate(typecheck_bv_extend_ops, expr, ctxt)
+            # BV extend ops
+            if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
+                return annotate(typecheck_bv_extend_ops, expr, ctxt)
 
+        # Handle operators which are not represented as strings,
+        # or which did not match any of the above (e.g. functions)
         key = expr.op.__str__()
         if key in ctxt.globals:
-            t = ctxt.globals[key].split(" ")[-1]
-            expr.type = t
-            return t
+            signature: str = ctxt.globals[key].strip()
+            # Careful: do we have parentheses?!
+            par_level = 0
+            for x in range(len(signature)):
+                # Go through the string backwards
+                i = len(signature) - 1 - x
+                c = signature[i]
+                if c == ")":
+                    par_level += 1
+                elif c == "(":
+                    par_level -= 1
+                # Stop if all parentheses have cancelled each other out
+                if (
+                    par_level == 0 and
+                    (c.isspace() or c in ["(", ")"] or i == 0)
+                ):
+                    t = signature[i:].strip()
+                    assert len(t) > 0
+                    t = sort2type(t)
+                    expr.type = t
+                    return t
+        
         raise UnknownOperator(expr.op)
 
     elif expr.quantifier:
@@ -1077,15 +1111,23 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
     return UNKNOWN
 
 
-def typecheck(formula, glob):
+def typecheck(formula, glob, timeout_limit=30):
     """
     :formula: Script object representing formula
     :glob: glob variables for formula returned by parser
     :returns: context object ctxt
     """
-    ctxt = Context(glob, {})
-    for cmd in formula.commands:
-        if isinstance(cmd, Assert):
-            assert isinstance(cmd.term, Term)
-            typecheck_expr(cmd.term, ctxt)
-    return ctxt
+    @exit_after(timeout_limit)
+    def _typecheck(formula, glob):
+        ctxt = Context(glob, {})
+        for cmd in formula.commands:
+            if isinstance(cmd, Assert):
+                assert isinstance(cmd.term, Term)
+                typecheck_expr(cmd.term, ctxt)
+        return ctxt
+
+    try:
+        return _typecheck(formula, glob)
+    except KeyboardInterrupt:
+        print("Typechecker timed out or was interrupted.")
+        return None
