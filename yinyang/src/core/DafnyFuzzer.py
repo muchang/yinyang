@@ -22,6 +22,7 @@
 
 import os
 import re
+import glob
 import copy
 import time
 import shutil
@@ -138,11 +139,11 @@ class DafnyFuzzer(Fuzzer):
 
         for seed in seeds:
             if self.strategy == "typefuzz":
-                script, glob = self.get_script(seed)
+                script, globvar = self.get_script(seed)
                 if not script:
                     continue
 
-                typecheck(script, glob)
+                typecheck(script, globvar)
                 script_cp = copy.deepcopy(script)
                 unique_expr = get_unique_subterms(script_cp)
                 self.mutator = GenTypeAwareMutation(
@@ -166,7 +167,6 @@ class DafnyFuzzer(Fuzzer):
                 if not script:
                     continue
                 self.mutator = None
-
             else:
                 assert False
 
@@ -198,22 +198,33 @@ class DafnyFuzzer(Fuzzer):
                 if skip_seed:
                     log_skip_seed_mutator(self.args, i)
                     break  # Continue to next seed.
+                
+                scratchprefix = "%s/%s-%s-%s" % (
+                    self.args.scratchfolder,
+                    escape("-".join(self.currentseeds)),
+                    self.name,
+                    random_string(),
+                )
 
-                (mutate_further, scratchfile) = self.test(mutant, i + 1)
+                mutate_further= self.test(mutant, i + 1, scratchprefix)
 
                 self.statistic.mutants += 1
                 if not self.args.keep_mutants:
                     try:
-                        os.remove(scratchfile)
-                        os.remove(scratchfile+".dfy")
+                        pattern = scratchprefix+"*"
+                        matches = glob.glob(pattern)
+                        for match in matches:
+                            print(match)
+                            if os.path.isdir(match):
+                                shutil.rmtree(match)
+                            else:
+                                os.remove(match)
                     except OSError:
                         pass
 
                 if not mutate_further:  # Continue to next seed.
                     log_skip_seed_test(self.args, i)
                     break  # Continue to next seed.
-
-
 
             log_finished_generations(successful_gens, unsuccessful_gens)
         self.terminate()
@@ -239,7 +250,7 @@ class DafnyFuzzer(Fuzzer):
             testbook.append((cli, testcase))
         return testbook
 
-    def test(self, script, iteration):
+    def test(self, script, iteration, scratchprefix):
         """
         Tests the solvers on the provided script. Checks for crashes, segfaults
         invalid models and soundness issues, ignores duplicates. Stores bug
@@ -255,13 +266,9 @@ class DafnyFuzzer(Fuzzer):
         # gets overwritten by the result of the first solver call. For
         # metamorphic testing (yinyang) the oracle is pre-set by the cmd line.
         reference = None
-        scratchfile = "%s/%s-%s-%s.smt2" % (
-            self.args.scratchfolder,
-            escape("-".join(self.currentseeds)),
-            self.name,
-            random_string(),
-        )
-        with open(scratchfile, "w") as testcase_writer:
+
+        scratchsmt = scratchprefix+".smt2"
+        with open(scratchsmt, "w") as testcase_writer:
             testcase_writer.write(script.__str__())
 
         if self.args.oracle != "unknown":
@@ -271,11 +278,11 @@ class DafnyFuzzer(Fuzzer):
             solver = Solver(solver_cli)
 
             stdout, stderr, exitcode = solver.solve(
-                scratchfile, self.args.timeout
+                scratchsmt, self.args.timeout
             )
 
             if self.max_timeouts_reached():
-                return (False, scratchfile)
+                return False
 
             # Check whether the solver call produced errors, e.g, related
             # to its parser, options, type-checker etc., by matching stdout
@@ -284,7 +291,7 @@ class DafnyFuzzer(Fuzzer):
             if in_ignore_list(stdout, stderr):
                 log_ignore_list_mutant(solver_cli)
                 self.statistic.invalid_mutants += 1
-                return (True, scratchfile)
+                return True
 
             if exitcode != 0:
 
@@ -295,14 +302,14 @@ class DafnyFuzzer(Fuzzer):
                     #     script, "segfault", solver_cli, stdout, stderr
                     # )
                     # log_segfault_trigger(self.args, path, iteration)
-                    return (True, scratchfile)
+                    return True
 
                 # Check whether the solver timed out.
                 elif exitcode == 137:
                     self.statistic.timeout += 1
                     self.timeout_of_current_seed += 1
                     log_solver_timeout(self.args, solver_cli, iteration)
-                    return (False, scratchfile)
+                    return False
 
                 # Check whether a "command not found" error occurred.
                 elif exitcode == 127:
@@ -320,17 +327,18 @@ class DafnyFuzzer(Fuzzer):
 
             result = grep_result(stdout)
             if result.equals(SolverQueryResult.UNKNOWN):
-                return (False, scratchfile)
+                return False
             elif result.equals(SolverQueryResult.UNSAT):
                 self.statistic.invalid_mutants += 1
                 log_invalid_mutant(self.args, iteration)
-                return (False, scratchfile)
+                return False
             oracle = result
             reference = (solver_cli, stdout, stderr)
 
-        formula = parse_file(scratchfile)
+        formula = parse_file(scratchsmt)
         transformer = DafnyTransformer(formula, self.args)
-        with open(scratchfile+".dfy", "w") as f:
+        scratchdafny = scratchprefix+".dfy"
+        with open(scratchdafny, "w") as f:
             f.write(str(transformer))
 
         dafny_cli = self.args.SOLVER_CLIS[1]
@@ -338,7 +346,7 @@ class DafnyFuzzer(Fuzzer):
         self.statistic.solver_calls += 1
 
         dafny_stdout, dafny_stderr, dafny_exitcode = dafny.solve(
-            scratchfile+".dfy", self.args.timeout
+            scratchdafny, self.args.timeout
         )
 
         if dafny_exitcode != 0 and dafny_exitcode != 4:
@@ -351,18 +359,27 @@ class DafnyFuzzer(Fuzzer):
                     script, transformer, "segfault", dafny_cli, dafny_stdout, dafny_stderr
                 )
                 log_segfault_trigger(self.args, path, iteration)
-                return (True, scratchfile)
+                return True
 
             # Check whether the solver timed out.
             elif dafny_exitcode == 137:
                 self.statistic.timeout += 1
                 self.timeout_of_current_seed += 1
                 log_solver_timeout(self.args, dafny_cli, iteration)
-                return (False, scratchfile)
+                return False
 
             # Check whether a "command not found" error occurred.
             elif dafny_exitcode == 127:
                 raise Exception("Dafny not found: %s" % dafny_cli)
+
+            elif "Program compiled successfully" not in dafny_stdout:
+                self.statistic.effective_calls += 1
+                self.statistic.crashes += 1
+                path = self.report(
+                    script, transformer, "compile_error", dafny_cli, dafny_stdout, dafny_stderr
+                )
+                log_segfault_trigger(self.args, path, iteration)
+                return True
             
             else:
                 raise Exception("Dafny exited with code %s, stdout %s, stderr %s" % (dafny_exitcode, dafny_stdout, dafny_stderr))
@@ -411,9 +428,9 @@ class DafnyFuzzer(Fuzzer):
                     )
 
                 log_soundness_trigger(self.args, iteration, path)
-                return (False, scratchfile)  # Stop testing.
+                return False  # Stop testing.
             
-        return (True, scratchfile)  # Continue to next seed.
+        return True  # Continue to next seed.
 
     def report(self, script, dafny, bugtype, cli, stdout, stderr):
         plain_cli = plain(cli)
