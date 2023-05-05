@@ -31,6 +31,8 @@ import signal
 import logging
 import pathlib
 
+from yinyang.src.base.Utils import timeout_handler, TimeoutException
+
 from yinyang.src.core.Fuzzer import Fuzzer
 from yinyang.src.core.Dafny import Dafny
 from yinyang.src.transformers.DafnyTransformer import DafnyTransformer
@@ -139,16 +141,22 @@ class DafnyFuzzer(Fuzzer):
 
         for seed in seeds:
             if self.strategy == "typefuzz":
-                script, globvar = self.get_script(seed)
-                if not script:
-                    continue
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(self.args.timeout)
+                try:
+                    script, globvar = self.get_script(seed)
+                    if not script:
+                        continue
 
-                typecheck(script, globvar)
-                script_cp = copy.deepcopy(script)
-                unique_expr = get_unique_subterms(script_cp)
-                self.mutator = GenTypeAwareMutation(
-                    script, self.args, unique_expr
-                )
+                    typecheck(script, globvar)
+                    script_cp = copy.deepcopy(script)
+                    unique_expr = get_unique_subterms(script_cp)
+                    self.mutator = GenTypeAwareMutation(
+                        script, self.args, unique_expr
+                    )
+                    signal.alarm(0)
+                except TimeoutException:
+                    continue
 
             elif self.strategy == "opfuzz":
                 script, _ = self.get_script(seed)

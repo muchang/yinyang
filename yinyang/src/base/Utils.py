@@ -27,7 +27,6 @@ import string
 def random_string(length=5):
     return "".join(random.sample(string.ascii_letters + string.digits, length))
 
-
 def plain(cli):
     plain_cli = ""
     for token in cli.split(" "):
@@ -47,3 +46,9 @@ def in_list(stdout, stderr, lst):
         if err in stdstream:
             return True
     return False
+
+class TimeoutException(Exception):   # 自定义异常类
+    pass
+
+def timeout_handler(signum, frame):
+    raise TimeoutException()
