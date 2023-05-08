@@ -149,6 +149,7 @@ class DafnyCodeBlock(CodeBlock):
             for subterm in self.expression.subterms:
                 mod = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(mod)
+                self.statements.append("assume %s != 0;" % mod.identifier)
                 self.assignee += str(mod.identifier) + " % "
             self.assignee = self.assignee[:-3]
         
@@ -162,11 +163,18 @@ class DafnyCodeBlock(CodeBlock):
             self.assignee = self.assignee[:-3]
         
         elif self.expression.let_terms != None:
+            context = self.context
             for let_term_idx in range(len(self.expression.let_terms)):
                 letterm = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.let_terms[let_term_idx])
                 self.update_with(letterm)
-                self.statements.append("var %s := %s;" % (str(self.expression.var_binders[let_term_idx]).replace("$","").strip("."), letterm.identifier))
-            letblock = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+                letvar = str(self.expression.var_binders[let_term_idx]).replace("$","").strip(".")
+                if letvar in self.context.let_vars:
+                    context.let_vars[letvar] = letterm.identifier
+                    self.statements.append("%s := %s;" % (letvar, letterm.identifier))
+                else:
+                    context.let_vars[letvar] = letterm.identifier
+                    self.statements.append("var %s := %s;" % (letvar, letterm.identifier))
+            letblock = DafnyCodeBlock(self.tmpid, self.env, context, self.args, self.expression.subterms[0])
             self.update_with(letblock)
             self.assignee = letblock.identifier
         
@@ -206,7 +214,7 @@ class DafnyCodeBlock(CodeBlock):
     def update_with(self, codeblock: 'DafnyCodeBlock'):
         self.statements.extend(codeblock.statements)
         self.env = codeblock.env
-        self.context = codeblock.context
+        #self.context = codeblock.context
         self.tmpid = codeblock.tmpid
 
 
