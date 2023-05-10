@@ -1117,7 +1117,7 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
             return annotate(typecheck_label, expr, ctxt)
     
     elif isinstance(expr, str):
-        t = lookup_global(key)
+        t = lookup_global(expr)
         if t is None:
             return UNKNOWN
         expr.type = t
