@@ -163,8 +163,8 @@ def typecheck_eq(expr, ctxt=[]):
     (par (A) (distinct A A Bool :pairwise))
     """
     assert isinstance(expr, Term), f"Equality-check: expr should by of type Term (is '{type(expr)}')"
-    assert term.subterms, f"Equality-check: expr should have subterms"
-    assert len(term.subterms) >= 2, f"Equality-check: expr should have at least two subterms"
+    assert expr.subterms, "Equality-check: expr should have subterms"
+    assert len(expr.subterms) >= 2, "Equality-check: expr should have at least two subterms"
     typ = typecheck_expr(expr.subterms[0], ctxt)
     for term in expr.subterms[1:]:
         t = typecheck_expr(term, ctxt)
