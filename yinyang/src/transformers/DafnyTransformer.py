@@ -1,3 +1,5 @@
+import copy
+
 from yinyang.src.transformers.Transformer import Transformer, CodeBlock, Context, Environment
 from yinyang.src.transformers.Util import type_smt2dafny
 from yinyang.src.parsing.Ast import Term
@@ -163,9 +165,9 @@ class DafnyCodeBlock(CodeBlock):
             self.assignee = self.assignee[:-3]
         
         elif self.expression.let_terms != None:
-            context = self.context
+            context = copy.deepcopy(self.context)
             for let_term_idx in range(len(self.expression.let_terms)):
-                letterm = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.let_terms[let_term_idx])
+                letterm = DafnyCodeBlock(self.tmpid, self.env, context, self.args, self.expression.let_terms[let_term_idx])
                 self.update_with(letterm)
                 letvar = str(self.expression.var_binders[let_term_idx]).replace("$","").strip(".")
                 if letvar in self.context.let_vars:
@@ -423,13 +425,14 @@ class DafnyAndBlock(DafnyCodeBlock):
             self.statements.append("var %s := false;" % self.identifier)
         condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.update_with(condition)
-        self.statements.append("if (%s) {" % condition.identifier)
+        self.statements.append("while (%s) {" % condition.identifier)
 
         if len(self.expression.subterms) == 1:
             self.statements.append("%s := true;" % self.identifier)
         else:
             subblock = DafnyAndBlock(self.tmpid, self.env, self.context, self.args, Term(op="and", subterms=self.expression.subterms[1:]), identifier=self.identifier)
             self.update_with(subblock)
+        self.statements.append("break;")
         self.statements.append("}")
     
     def __str__(self):
@@ -535,10 +538,13 @@ class DafnyXORBlock(DafnyCodeBlock):
             self.statements.append("var %s := false;" % self.identifier)
         condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.update_with(condition)
+        if "?v_4" in str(self.context.let_vars) and not self.customizedID:
+                print("here")
         self.statements.append("if (%s) {" % condition.identifier)
         if len(self.expression.subterms) == 1:
             self.statements.append("%s := %s;" % (self.identifier, self.get_truth(True)))
         else:
+            context = copy.deepcopy(self.context)
             subblock = DafnyXORBlock(self.tmpid, self.env, self.context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=not self.truth)
             self.update_with(subblock)
         self.statements.append("}")
@@ -768,7 +774,7 @@ class DafnyMethod(CodeBlock):
     def update_with(self, assertblock: DafnyCodeBlock):
         self.tmpid = assertblock.tmpid
         self.env = assertblock.env
-        self.context = assertblock.context
+        #self.context = assertblock.context
     
     def __str__(self) -> str:
         args_text = self.generate_args()
