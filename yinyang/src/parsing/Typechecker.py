@@ -1020,7 +1020,7 @@ def annotate(f, expr, ctxt):
 
 def typecheck_expr(expr: Term, ctxt=Context({}, {})):
 
-    def typecheck_by_key(key : str):
+    def lookup_global(key : str):
         if key in ctxt.globals:
             signature: str = ctxt.globals[key].strip()
             # Careful: do we have parentheses?!
@@ -1041,10 +1041,8 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
                     t = signature[i:].strip()
                     assert len(t) > 0, f"function signature should have at least one word (key: {key})"
                     t = sort2type(t)
-                    expr.type = t
                     return t
-        
-        raise UnknownOperator(expr.op)
+        return None
 
     if isinstance(expr, Term):
         if expr.is_const:
@@ -1105,7 +1103,11 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
             # Handle operators which are not represented as strings,
             # or which did not match any of the above (e.g. functions)
             key = expr.op.__str__()
-            typecheck_by_key(key)
+            t = lookup_global(key)
+            if t is None:
+                raise UnknownOperator(expr.op)
+            expr.type = t
+            return t
 
         elif expr.quantifier:
             return annotate(typecheck_quantifiers, expr, ctxt)
@@ -1115,7 +1117,11 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
             return annotate(typecheck_label, expr, ctxt)
     
     elif isinstance(expr, str):
-        typecheck_by_key(key)
+        t = lookup_global(key)
+        if t is None:
+            return UNKNOWN
+        expr.type = t
+        return t
 
     return UNKNOWN
 
