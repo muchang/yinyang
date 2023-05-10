@@ -81,7 +81,7 @@ def sort2type(sort):
 
     if sort.startswith("(Array "):
         types = sort[1:-1].split(" ")
-        assert len(types) == 3
+        assert len(types) == 3, f"Unknown array sort: {sort}"
         return ARRAY_TYPE(sort2type(types[1]), sort2type(types[2]))
 
     return sort

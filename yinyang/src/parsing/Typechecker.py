@@ -162,10 +162,11 @@ def typecheck_eq(expr, ctxt=[]):
     """(par (A) (= A A Bool :chainable))
     (par (A) (distinct A A Bool :pairwise))
     """
-    assert isinstance(expr, Term)
+    assert isinstance(expr, Term), f"Equality-check: expr should by of type Term (is '{type(expr)}')"
+    assert term.subterms, f"Equality-check: expr should have subterms"
+    assert len(term.subterms) >= 2, f"Equality-check: expr should have at least two subterms"
     typ = typecheck_expr(expr.subterms[0], ctxt)
     for term in expr.subterms[1:]:
-        assert isinstance(term, Term)  # TODO: user-defined datatypes
         t = typecheck_expr(term, ctxt)
         if t != typ:
             if not (is_subtype(t, typ) or is_subtype(typ, t)):
@@ -909,7 +910,7 @@ def typecheck_quantifiers(expr, ctxt):
 
 
 def typecheck_core(expr, ctxt):
-    assert isinstance(expr, Term)
+    assert isinstance(expr, Term), "expr should be of type Term (typecheck_core)"
     if expr.op == NOT:
         return typecheck_not(expr, ctxt)
     if expr.op in [AND, OR, XOR, IMPLIES]:
@@ -1011,14 +1012,14 @@ def annotate(f, expr, ctxt):
     ctxt: context
     :returns: type of expr
     """
-    assert isinstance(expr, Term)
+    assert isinstance(expr, Term), f"cannot annotate expression of type '{type(expr)}' (should be 'Term')"
     t = f(expr, ctxt)
     expr.type = t
     return t
 
 
 def typecheck_expr(expr: Term, ctxt=Context({}, {})):
-    assert isinstance(expr, Term)
+    assert isinstance(expr, Term), f"typecheck_expr: expr has type '{type(expr)}'"
     if expr.is_const:
         return expr.type
     if expr.is_var or expr.is_indexed_id:
@@ -1095,7 +1096,7 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
                     (c.isspace() or c in ["(", ")"] or i == 0)
                 ):
                     t = signature[i:].strip()
-                    assert len(t) > 0
+                    assert len(t) > 0, f"function signature should have at least one word (key: {key})"
                     t = sort2type(t)
                     expr.type = t
                     return t
@@ -1122,7 +1123,6 @@ def typecheck(formula, glob, timeout_limit=30):
         ctxt = Context(glob, {})
         for cmd in formula.commands:
             if isinstance(cmd, Assert):
-                assert isinstance(cmd.term, Term)
                 typecheck_expr(cmd.term, ctxt)
         return ctxt
 
