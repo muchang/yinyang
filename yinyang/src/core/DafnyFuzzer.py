@@ -336,10 +336,10 @@ class DafnyFuzzer(Fuzzer):
             result = grep_result(stdout)
             if result.equals(SolverQueryResult.UNKNOWN):
                 return False
-            elif result.equals(SolverQueryResult.UNSAT):
-                self.statistic.invalid_mutants += 1
-                log_invalid_mutant(self.args, iteration)
-                return False
+            # elif result.equals(SolverQueryResult.UNSAT):
+            #     self.statistic.invalid_mutants += 1
+            #     log_invalid_mutant(self.args, iteration)
+            #     return False
             oracle = result
             reference = (solver_cli, stdout, stderr)
 
@@ -363,6 +363,7 @@ class DafnyFuzzer(Fuzzer):
             if dafny_exitcode == -signal.SIGSEGV or dafny_exitcode == 245:
                 self.statistic.effective_calls += 1
                 self.statistic.crashes += 1
+                dafny_stderr += str(-signal.SIGSEGV) + str(dafny_exitcode)
                 path = self.report(
                     script, transformer, "segfault", dafny_cli, dafny_stdout, dafny_stderr
                 )
