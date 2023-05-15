@@ -97,6 +97,12 @@ class UnknownOperator(Exception):
         super().__init__(self.message)
 
 
+class UnknownType(Exception):
+    def __init__(self, expr):
+        self.message = f"unknown type for expression '{str(expr)}'"
+        super().__init__(self.message)
+
+
 def typecheck_not(expr, ctxt=[]):
     """(not Bool Bool)"""
     typ = typecheck_expr(expr.subterms[0], ctxt)
@@ -162,7 +168,7 @@ def typecheck_eq(expr, ctxt=[]):
     """(par (A) (= A A Bool :chainable))
     (par (A) (distinct A A Bool :pairwise))
     """
-    assert isinstance(expr, Term), f"Equality-check: expr should by of type Term (is '{type(expr)}')"
+    assert isinstance(expr, Term), f"expr represented as {type(expr)}: {str(expr)}"
     assert expr.subterms, "Equality-check: expr should have subterms"
     assert len(expr.subterms) >= 2, "Equality-check: expr should have at least two subterms"
     typ = typecheck_expr(expr.subterms[0], ctxt)
@@ -910,7 +916,7 @@ def typecheck_quantifiers(expr, ctxt):
 
 
 def typecheck_core(expr, ctxt):
-    assert isinstance(expr, Term), "expr should be of type Term (typecheck_core)"
+    assert isinstance(expr, Term), f"expr represented as {type(expr)}: {str(expr)}"
     if expr.op == NOT:
         return typecheck_not(expr, ctxt)
     if expr.op in [AND, OR, XOR, IMPLIES]:
@@ -1012,14 +1018,14 @@ def annotate(f, expr, ctxt):
     ctxt: context
     :returns: type of expr
     """
-    assert isinstance(expr, Term), f"cannot annotate expression of type '{type(expr)}' (should be 'Term')"
+    assert isinstance(expr, Term), f"expr represented as {type(expr)}: {str(expr)}"
     t = f(expr, ctxt)
     expr.type = t
     return t
 
 
 def typecheck_expr(expr: Term, ctxt=Context({}, {})):
-    assert isinstance(expr, Term), f"typecheck_expr: expr has type '{type(expr)}'"
+    assert isinstance(expr, Term), f"expr represented as {type(expr)}: {str(expr)}"
     if expr.is_const:
         return expr.type
     if expr.is_var or expr.is_indexed_id:
@@ -1029,7 +1035,7 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
         elif expr.name in ctxt.globals:
             expr.type = ctxt.globals[expr.name]
             return ctxt.globals[expr.name]
-        return UNKNOWN
+        raise UnknownType(expr)
     elif expr.op:
         if expr.op in CORE_OPS:
             return annotate(typecheck_core, expr, ctxt)
@@ -1109,7 +1115,8 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
         return annotate(typecheck_let_expression, expr, ctxt)
     elif expr.label:
         return annotate(typecheck_label, expr, ctxt)
-    return UNKNOWN
+
+    raise UnknownType(expr)
 
 
 def typecheck(formula, glob, timeout_limit=30):
