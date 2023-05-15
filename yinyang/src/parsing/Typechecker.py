@@ -1019,8 +1019,65 @@ def annotate(f, expr, ctxt):
 
 
 def typecheck_expr(expr: Term, ctxt=Context({}, {})):
+    assert isinstance(expr, Term), f"typecheck_expr: expr has type '{type(expr)}'"
+    if expr.is_const:
+        return expr.type
+    if expr.is_var or expr.is_indexed_id:
+        if expr.name in ctxt.locals:
+            expr.type = ctxt.locals[expr.name]
+            return ctxt.locals[expr.name]
+        elif expr.name in ctxt.globals:
+            expr.type = ctxt.globals[expr.name]
+            return ctxt.globals[expr.name]
+        return UNKNOWN
+    elif expr.op:
+        if expr.op in CORE_OPS:
+            return annotate(typecheck_core, expr, ctxt)
+        if expr.op in NUMERICAL_OPS:
+            return annotate(typecheck_numeral, expr, ctxt)
+        if expr.op in INT_OPS:
+            return annotate(typecheck_int_ops, expr, ctxt)
+        if expr.op in REAL_OPS:
+            return annotate(typecheck_real_ops, expr, ctxt)
+        if expr.op in REAL_INTS:
+            return annotate(typecheck_real_ints_ops, expr, ctxt)
+        if expr.op in STRING_OPS:
+            return annotate(typecheck_string_ops, expr, ctxt)
+        if expr.op in ARRAY_OPS:
+            return annotate(typecheck_array_ops, expr, ctxt)
+        if expr.op in FP_OPS:
+            return annotate(typecheck_fp_ops, expr, ctxt)
+        if expr.op in BV_OPS:
+            return annotate(typecheck_bv_ops, expr, ctxt)
 
-    def lookup_global(key : str):
+        # Handle operators which are represented as strings
+        if isinstance(expr.op, str):
+            # FP infix ops
+            if TO_FP in expr.op:
+                return annotate(typecheck_to_fp, expr, ctxt)
+
+            if TO_FP_UNSIGNED in expr.op:
+                return annotate(typecheck_to_fp_unsigned, expr, ctxt)
+
+            # BV repeat
+            if BV_REPEAT in expr.op:
+                return annotate(typecheck_bv_repeat, expr, ctxt)
+
+            # BV rotate
+            if BV_ROTATE_LEFT in expr.op or BV_ROTATE_RIGHT in expr.op:
+                return annotate(typecheck_bv_unary, expr, ctxt)
+
+            # BV extract
+            if BV_EXTRACT in expr.op:
+                return annotate(typecheck_bv_extract, expr, ctxt)
+
+            # BV extend ops
+            if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
+                return annotate(typecheck_bv_extend_ops, expr, ctxt)
+
+        # Handle operators which are not represented as strings,
+        # or which did not match any of the above (e.g. functions)
+        key = expr.op.__str__()
         if key in ctxt.globals:
             signature: str = ctxt.globals[key].strip()
             # Careful: do we have parentheses?!
@@ -1041,88 +1098,17 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
                     t = signature[i:].strip()
                     assert len(t) > 0, f"function signature should have at least one word (key: {key})"
                     t = sort2type(t)
+                    expr.type = t
                     return t
-        return None
+        
+        raise UnknownOperator(expr.op)
 
-    if isinstance(expr, Term):
-        if expr.is_const:
-            return expr.type
-        if expr.is_var or expr.is_indexed_id:
-            if expr.name in ctxt.locals:
-                expr.type = ctxt.locals[expr.name]
-                return ctxt.locals[expr.name]
-            elif expr.name in ctxt.globals:
-                expr.type = ctxt.globals[expr.name]
-                return ctxt.globals[expr.name]
-            return UNKNOWN
-        elif expr.op:
-            if expr.op in CORE_OPS:
-                return annotate(typecheck_core, expr, ctxt)
-            if expr.op in NUMERICAL_OPS:
-                return annotate(typecheck_numeral, expr, ctxt)
-            if expr.op in INT_OPS:
-                return annotate(typecheck_int_ops, expr, ctxt)
-            if expr.op in REAL_OPS:
-                return annotate(typecheck_real_ops, expr, ctxt)
-            if expr.op in REAL_INTS:
-                return annotate(typecheck_real_ints_ops, expr, ctxt)
-            if expr.op in STRING_OPS:
-                return annotate(typecheck_string_ops, expr, ctxt)
-            if expr.op in ARRAY_OPS:
-                return annotate(typecheck_array_ops, expr, ctxt)
-            if expr.op in FP_OPS:
-                return annotate(typecheck_fp_ops, expr, ctxt)
-            if expr.op in BV_OPS:
-                return annotate(typecheck_bv_ops, expr, ctxt)
-
-            # Handle operators which are represented as strings
-            if isinstance(expr.op, str):
-                # FP infix ops
-                if TO_FP in expr.op:
-                    return annotate(typecheck_to_fp, expr, ctxt)
-
-                if TO_FP_UNSIGNED in expr.op:
-                    return annotate(typecheck_to_fp_unsigned, expr, ctxt)
-
-                # BV repeat
-                if BV_REPEAT in expr.op:
-                    return annotate(typecheck_bv_repeat, expr, ctxt)
-
-                # BV rotate
-                if BV_ROTATE_LEFT in expr.op or BV_ROTATE_RIGHT in expr.op:
-                    return annotate(typecheck_bv_unary, expr, ctxt)
-
-                # BV extract
-                if BV_EXTRACT in expr.op:
-                    return annotate(typecheck_bv_extract, expr, ctxt)
-
-                # BV extend ops
-                if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
-                    return annotate(typecheck_bv_extend_ops, expr, ctxt)
-
-            # Handle operators which are not represented as strings,
-            # or which did not match any of the above (e.g. functions)
-            key = expr.op.__str__()
-            t = lookup_global(key)
-            if t is None:
-                raise UnknownOperator(expr.op)
-            expr.type = t
-            return t
-
-        elif expr.quantifier:
-            return annotate(typecheck_quantifiers, expr, ctxt)
-        elif expr.let_terms:
-            return annotate(typecheck_let_expression, expr, ctxt)
-        elif expr.label:
-            return annotate(typecheck_label, expr, ctxt)
-    
-    elif isinstance(expr, str):
-        t = lookup_global(expr)
-        if t is None:
-            return UNKNOWN
-        expr.type = t
-        return t
-
+    elif expr.quantifier:
+        return annotate(typecheck_quantifiers, expr, ctxt)
+    elif expr.let_terms:
+        return annotate(typecheck_let_expression, expr, ctxt)
+    elif expr.label:
+        return annotate(typecheck_label, expr, ctxt)
     return UNKNOWN
 
 
