@@ -121,6 +121,11 @@ def add_dafnyfuzz_args(parser, rootpath, current_dir):
         action="store_true"
     )
     parser.add_argument(
+        "-method",
+        "--method-support",
+        action="store_true"
+    )
+    parser.add_argument(
         "-o",
         "--oracle",
         default="unknown",

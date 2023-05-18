@@ -140,30 +140,69 @@ class DafnyCodeBlock(CodeBlock):
         
         elif self.expression.op == DIV:
             self.assignee = ""
-            for subterm in self.expression.subterms:
+            # free variable for division by zero
+            free_var = "div_%s" % self.tmpid
+            self.tmpid += 1
+            self.env.div_vars[free_var] = "int"
+            # first subterm is the dividend
+            condition = "true && "
+            div = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+            self.update_with(div)
+            assignee = div.identifier + " / "
+            # other subterms are the divisors
+            for subterm in self.expression.subterms[1:]:
                 div = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(div)
-                self.statements.append("assume %s != 0;" % div.identifier)
-                self.assignee += str(div.identifier) + " / "
-            self.assignee = self.assignee[:-3]
+                condition += str(div.identifier) + " != 0 && "
+                assignee += str(div.identifier) + " / "
+            #end    
+            condition = condition[:-3]
+            assignee = assignee[:-3]
+            self.assignee += "if %s then %s else %s" % (condition, assignee, free_var)
         
         elif self.expression.op == MOD:
             self.assignee = ""
-            for subterm in self.expression.subterms:
+            # free variable for division by zero
+            free_var = "mod_%s" % self.tmpid
+            self.tmpid += 1
+            self.env.div_vars[free_var] = "int"
+            # first subterm is the dividend
+            condition = "true && "
+            mod = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+            self.update_with(mod)
+            assignee = mod.identifier + " % "
+            # other subterms are the divisors
+            for subterm in self.expression.subterms[1:]:
                 mod = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(mod)
-                self.statements.append("assume %s != 0;" % mod.identifier)
-                self.assignee += str(mod.identifier) + " % "
-            self.assignee = self.assignee[:-3]
-        
+                condition += str(mod.identifier) + " != 0 && "
+                assignee += str(mod.identifier) + " % "
+            #end
+            condition = condition[:-3]
+            assignee = assignee[:-3]
+            self.assignee += "if %s then %s else %s" % (condition, assignee, free_var)
+
         elif self.expression.op == REAL_DIV:
             self.assignee = ""
+            # free variable for division by zero
+            free_var = "div_%s" % self.tmpid
+            self.tmpid += 1
+            self.env.div_vars[free_var] = "real"
+            # first subterm is the dividend
+            condition = "true && "
+            real_div = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+            self.update_with(real_div)
+            assignee = real_div.identifier + " / "
+            # other subterms are the divisors
             for subterm in self.expression.subterms:
                 real_div = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(real_div)
-                self.statements.append("assume %s != 0.0;" % real_div.identifier)
-                self.assignee += str(real_div.identifier) + " / "
-            self.assignee = self.assignee[:-3]
+                condition += str(real_div.identifier) + " != 0.0 && "
+                assignee += str(real_div.identifier) + " / "
+            #end
+            condition = condition[:-3]
+            assignee = assignee[:-3]
+            self.assignee += "if %s then %s else %s" % (condition, assignee, free_var)
         
         elif self.expression.let_terms != None:
             for let_term_idx in range(len(self.expression.let_terms)):
@@ -301,6 +340,7 @@ class DafnyXORBlock(DafnyCodeBlock):
             self.update_with(subblock)
         self.statements.append("}")
 
+        context = copy.deepcopy(self.context)
         self.statements.append("else {")
         if len(self.expression.subterms) == 1:
             self.statements.append("%s := %s;" % (self.identifier, self.get_truth(False)))
@@ -334,11 +374,14 @@ class DafnyTransformer(Transformer):
         self.context.get_free_vars_from(self.free_variables)
         self.assert_methods = []
         for assert_cmd in self.assert_cmds:
-            method = DafnyMethod(self.tmpid, self.env, self.context, self.args, assert_cmd)
+            if args.method_support:
+                method = DafnyMethod(self.tmpid, self.env, self.context, self.args, assert_cmd)
+            else: 
+                method = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, assert_cmd.term)
             self.update_with(method)
             self.assert_methods.append(method)
         
-    def update_with(self, method: 'DafnyMethod'):
+    def update_with(self, method):
         self.tmpid = method.tmpid
         self.env = method.env
         self.context = method.context
@@ -346,23 +389,35 @@ class DafnyTransformer(Transformer):
     def __str__(self) -> str:
         assert_identifiers = []
         text = ""
-        for method in self.env.methods:
-            text += method
-        text += "\nmethod main "
-        text += self.generate_args() + " {\n"
-        for method in self.assert_methods:
-            assert_var_identifier = "assert_" + str(method.identifier)
-            text += "var %s := %s;\n" % (assert_var_identifier, method.generate_call())
-            assert_identifiers.append(assert_var_identifier)
-        text += "var oracle := " + " && ".join(assert_identifiers) + ";\n"
-        text += "assert (! oracle);\n"
-        text += "}"
+        if self.args.method_support:
+            for method in self.env.methods:
+                text += method
+            text += "\nmethod main "
+            text += self.generate_args() + " {\n"
+            for method in self.assert_methods:
+                assert_var_identifier = "assert_" + str(method.identifier)
+                text += "var %s := %s;\n" % (assert_var_identifier, method.generate_call())
+                assert_identifiers.append(assert_var_identifier)
+            text += "var oracle := " + " && ".join(assert_identifiers) + ";\n"
+            text += "assert (! oracle);\n"
+            text += "}"
+        else:
+            text += "\nmethod main "
+            text += self.generate_args() + " {\n"
+            for method in self.assert_methods:
+                text += str(method)
+                assert_identifiers.append(str(method.identifier))
+            text += "var oracle := " + " && ".join(assert_identifiers) + ";\n"
+            text += "assert (! oracle);\n"
+            text += "}"
         return text
     
     def generate_args(self):
         args_text = "("
         for var in self.context.free_vars:
             args_text += str(var) + ": " + str(self.context.free_vars[var]) + ", "
+        for var in self.env.div_vars:
+            args_text += str(var) + ": " + str(self.env.div_vars[var]) + ", "
         args_text = args_text[:-2] + ")"
         return args_text
 

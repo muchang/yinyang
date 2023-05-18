@@ -59,7 +59,9 @@ class Environment:
     def __init__(self):
         self.methods = []
         self.global_vars = {}
+        self.div_vars = {}
     
     def add_environment(self, env: 'Environment'):
         self.methods.extend(env.methods)
         self.global_vars.update(env.global_vars)
+        self.div_vars.update(env.div_vars)

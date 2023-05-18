@@ -83,5 +83,5 @@ class Dafny:
             return SolverResult(SolverQueryResult.UNSAT)
         else:
             raise Exception("dafny: unknown result \n %d", stdout)
-            return SolverResult(SolverQueryResult.UNKNOWN)
+            return SolverResult(SolverQueryResult.UNKNOWN)  
 

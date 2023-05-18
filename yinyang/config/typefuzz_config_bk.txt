@@ -19,6 +19,8 @@
 (- Int Int Int :left-assoc) ; subtraction
 (+ Int Int Int :left-assoc) 
 (* Int Int Int :left-assoc)
+(div Int Int Int :left-assoc)
+(mod Int Int Int)
 (abs Int Int)
 (<= Int Int Bool :chainable)
 (<  Int Int Bool :chainable)
@@ -32,6 +34,7 @@
 (- Real Real Real :left-assoc) ; subtraction
 (+ Real Real Real :left-assoc) 
 (* Real Real Real :left-assoc)
+(/ Real Real Real :left-assoc)
 (<= Real Real Bool :chainable)
 (<  Real Real Bool :chainable)
 (>= Real Real Bool :chainable)
@@ -43,6 +46,8 @@
 (- Int Int Int :left-assoc) ; subtraction
 (+ Int Int Int :left-assoc) 
 (* Int Int Int :left-assoc)
+(div Int Int Int :left-assoc)
+(mod Int Int Int)
 (abs Int Int)
 (<= Int Int Bool :chainable)
 (<  Int Int Bool :chainable)
@@ -53,10 +58,14 @@
 (- Real Real Real :left-assoc) ; subtraction
 (+ Real Real Real :left-assoc) 
 (* Real Real Real :left-assoc)
+(/ Real Real Real :left-assoc)
 (<= Real Real Bool :chainable)
 (<  Real Real Bool :chainable)
 (>= Real Real Bool :chainable)
 (>  Real Real Bool :chainable)
+(to_real Int Real)
+(to_int Real Int)
+(is_int Real Bool)
 
 ; ### funs from strings
 ;

@@ -36,6 +36,11 @@ parser.add_argument(
     action="store_true"
 )
 parser.add_argument(
+    "-method",
+    "--method-support",
+    action="store_true"
+)
+parser.add_argument(
     "-o",
     "--oracle",
     default="unknown",
