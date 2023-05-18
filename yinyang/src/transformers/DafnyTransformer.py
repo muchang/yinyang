@@ -194,7 +194,7 @@ class DafnyCodeBlock(CodeBlock):
             self.update_with(real_div)
             assignee = real_div.identifier + " / "
             # other subterms are the divisors
-            for subterm in self.expression.subterms:
+            for subterm in self.expression.subterms[1:]:
                 real_div = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(real_div)
                 condition += str(real_div.identifier) + " != 0.0 && "
@@ -208,7 +208,7 @@ class DafnyCodeBlock(CodeBlock):
             for let_term_idx in range(len(self.expression.let_terms)):
                 letterm = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.let_terms[let_term_idx])
                 self.update_with(letterm)
-                letvar = str(self.expression.var_binders[let_term_idx]).replace("$","").strip(".")
+                letvar = str(self.expression.var_binders[let_term_idx]).replace("!", "").replace("$","").replace(".", "")
                 if letvar in self.context.let_vars:
                     self.context.let_vars[letvar] = letterm.identifier
                     self.statements.append("%s := %s;" % (letvar, letterm.identifier))
@@ -222,8 +222,10 @@ class DafnyCodeBlock(CodeBlock):
         elif self.expression.op == None:
             if self.args != None and self.args.real_support and str.isdigit(str(self.expression)) and '.' not in str(self.expression):
                 self.assignee = str(self.expression)+".0"
+            elif str.isdigit(str(self.expression).replace(".", "")):
+                self.assignee = str(self.expression)
             else:
-                self.assignee = str(self.expression).replace("!", "").replace("$", "")
+                self.assignee = str(self.expression).replace("!", "").replace("$", "").replace(".", "")
 
         elif self.expression.op == AND:
             if len(self.expression.subterms) == 0:
@@ -415,9 +417,9 @@ class DafnyTransformer(Transformer):
     def generate_args(self):
         args_text = "("
         for var in self.context.free_vars:
-            args_text += str(var) + ": " + str(self.context.free_vars[var]) + ", "
+            args_text += str(var).replace("!", "").replace("$", "").replace(".", "") + ": " + str(self.context.free_vars[var]) + ", "
         for var in self.env.div_vars:
-            args_text += str(var) + ": " + str(self.env.div_vars[var]) + ", "
+            args_text += str(var).replace("!", "").replace("$", "").replace(".", "") + ": " + str(self.env.div_vars[var]) + ", "
         args_text = args_text[:-2] + ")"
         return args_text
 
@@ -453,7 +455,7 @@ return_var := %s;
     def generate_args(self):
         args_text = "("
         for var in self.context.free_vars:
-            args_text += str(var) + ": " + str(self.context.free_vars[var]) + ", "
+            args_text += str(var).replace("!", "").replace("$", "").replace(".", "") + ": " + str(self.context.free_vars[var]) + ", "
         args_text = args_text[:-2] + ")"
         return args_text
 
