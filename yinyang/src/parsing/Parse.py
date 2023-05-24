@@ -107,15 +107,15 @@ def generate_ast(stream, prep_seed=True):
     if len(formula.commands) == 0:
         return None
 
-    return prepare_seed(formula) if prep_seed else formula, vis.global_vars
+    return prepare_seed(formula) if prep_seed else formula, vis.global_vars, vis.global_defines
 
 
 def parse_filestream(fn, timeout_limit):
     @exit_after(timeout_limit)
     def _parse_filestream(fn):
         fstream = FileStream(fn, encoding="utf8")
-        ast, globs = generate_ast(fstream)
-        return ast, globs
+        ast, globs, defines = generate_ast(fstream)
+        return ast, globs, defines
 
     return _parse_filestream(fn)
 
@@ -141,9 +141,10 @@ def parse(parse_fct, arg, timeout_limit, silent=True):
     """
     script = None
     globs = None
+    defines = None
 
     try:
-        script, globs = parse_fct(arg, timeout_limit)
+        script, globs, defines = parse_fct(arg, timeout_limit)
     except KeyboardInterrupt:
         print("Parser timed out or was interrupted.")
     except Exception as e:
@@ -151,7 +152,7 @@ def parse(parse_fct, arg, timeout_limit, silent=True):
             print("Error generating the AST.")
             print(e)
             traceback.print_exc(file=sys.stdout)
-    return script, globs
+    return script, globs, defines
 
 
 def parse_file(fn, timeout_limit=30, silent=True):

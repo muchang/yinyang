@@ -25,6 +25,7 @@ class Transformer:
         self.formula = formula
         self.assert_cmds = self.formula[0].assert_cmd
         self.free_variables = self.formula[1]
+        self.defined_variables = self.formula[2]
         self.args = args
     
     def trans(self):
@@ -47,13 +48,16 @@ class Context:
         if context is None:
             self.free_vars = {}
             self.let_vars = {}
+            self.defined_vars = {}
         else:
             self.free_vars = context.free_vars
             self.let_vars = context.let_vars
+            self.defined_vars = context.defined_vars
     
     def add_context(self, context: 'Context'):
         self.free_vars.update(context.free_vars)
         self.let_vars.update(context.let_vars)
+        self.defined_vars.update(context.defined_vars)
 
 class Environment:
     def __init__(self):

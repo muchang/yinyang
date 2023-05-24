@@ -71,6 +71,7 @@ class AstVisitor(SMTLIBv2Visitor):
     def __init__(self, strict=True):
         self.strict = strict
         self.global_vars = {}
+        self.global_defines = {}
         self.sorts = {}
 
     def visitStart(self, ctx: SMTLIBv2Parser.StartContext):
@@ -90,6 +91,15 @@ class AstVisitor(SMTLIBv2Visitor):
         else:
             self.global_vars[identifier] =\
                 sort2type(input_sorts + " " + output_sort)
+    
+    def add_to_defines(self, identifier, input_sorts, output_sort, term):
+        if len(input_sorts) == 0:
+            if output_sort in self.sorts:
+                output_sort = self.sorts[output_sort]
+            self.global_defines[identifier] = (sort2type(output_sort), term)
+        else:
+            self.global_defines[identifier] =\
+                (sort2type(input_sorts + " " + output_sort), term)
 
     def handleCommand(self, ctx: SMTLIBv2Parser.CommandContext):
         if ctx.cmd_assert():
@@ -151,9 +161,10 @@ class AstVisitor(SMTLIBv2Visitor):
                 sorted_vars.append(self.visitSorted_var(var))
             identifier = self.visitSymbol(ctx.function_def().symbol())
             sorted_vars = " ".join(sorted_vars)
-            self.add_to_globals(
+            self.add_to_defines(
                 identifier, sorted_vars,
-                self.visitSort(ctx.function_def().sort())
+                self.visitSort(ctx.function_def().sort()),
+                self.visitTerm(ctx.function_def().term(), {})
             )
             return DefineFun(
                 identifier,

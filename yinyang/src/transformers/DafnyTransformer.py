@@ -26,7 +26,10 @@ class DafnyCodeBlock(CodeBlock):
 
     def init_block(self):
 
-        if self.expression.op == ITE:
+        if isinstance(self.expression, str):
+            self.assignee = str(self.expression).replace("!", "").replace("$", "").replace(".", "")
+
+        elif self.expression.op == ITE:
             
             condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             branch1 = DafnyCodeBlock(condition.tmpid, self.env, self.context, self.args, self.expression.subterms[1])
@@ -356,9 +359,13 @@ class DafnyContext(Context):
     def __init__(self, context=None):
         super().__init__(context)
 
-    def get_free_vars_from(self, smt_free_variables):
-        for var in smt_free_variables:
-            self.free_vars[var] = type_smt2dafny(smt_free_variables[var])
+    def get_free_vars_from(self, smt_variables):
+        for var in smt_variables:
+            self.free_vars[var] = type_smt2dafny(smt_variables[var])
+    
+    def get_defined_vars_from(self, smt_variables):
+        for var in smt_variables:
+            self.free_vars[var] = type_smt2dafny(smt_variables[var][0])
 
 class DafnyEnvironment(Environment):
 
@@ -368,12 +375,14 @@ class DafnyEnvironment(Environment):
 
 class DafnyTransformer(Transformer):
 
-    def __init__(self, formula, args=None):
+    def __init__(self, formula, args):
         super().__init__(formula, args)
         self.tmpid = 0
         self.context = DafnyContext()
         self.env = DafnyEnvironment()
         self.context.get_free_vars_from(self.free_variables)
+        self.context.get_defined_vars_from(self.defined_variables)
+
         self.assert_methods = []
         for assert_cmd in self.assert_cmds:
             if args.method_support:
