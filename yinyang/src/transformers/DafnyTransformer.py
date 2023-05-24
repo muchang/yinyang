@@ -392,6 +392,15 @@ class DafnyTransformer(Transformer):
             self.update_with(method)
             self.assert_methods.append(method)
         
+        self.defined_assertions = []
+        for defined_var in self.defined_variables:
+            if args.method_support:
+                method = DafnyMethod(self.tmpid, self.env, self.context, self.args, self.defined_variables[defined_var][1])
+            else:
+                method = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.defined_variables[defined_var][1])
+            self.update_with(method)
+            self.defined_assertions.append((defined_var,method))
+        
     def update_with(self, method):
         self.tmpid = method.tmpid
         self.env = method.env
@@ -405,21 +414,26 @@ class DafnyTransformer(Transformer):
                 text += method
             text += "\nmethod main "
             text += self.generate_args() + " {\n"
+            for method in self.defined_assertions:
+                text += "\nvar %s := %s;\n" % (method[0], method[1].generate_call())
             for method in self.assert_methods:
                 assert_var_identifier = "assert_" + str(method.identifier)
-                text += "var %s := %s;\n" % (assert_var_identifier, method.generate_call())
+                text += "\nvar %s := %s;\n" % (assert_var_identifier, method.generate_call())
                 assert_identifiers.append(assert_var_identifier)
-            text += "var oracle := " + " && ".join(assert_identifiers) + ";\n"
+            text += "\nvar oracle := " + " && ".join(assert_identifiers) + ";\n"
             text += "assert (! oracle);\n"
             text += "}"
         else:
             text += "\nmethod main "
             text += self.generate_args() + " {\n"
+            for method in self.defined_assertions:
+                text += str(method[1])
+                text += "\nvar %s := %s;\n" % (method[0], method[1].identifier)
             for method in self.assert_methods:
                 text += str(method)
                 assert_identifiers.append(str(method.identifier))
-            text += "var oracle := " + " && ".join(assert_identifiers) + ";\n"
-            text += "assert (! oracle);\n"
+            text += "\nvar oracle := " + " && ".join(assert_identifiers) + ";"
+            text += "\nassert (! oracle);\n"
             text += "}"
         return text
     

@@ -21,7 +21,7 @@
 # SOFTWARE.
 
 class Transformer:
-    def __init__(self, formula, args=None):
+    def __init__(self, formula, args):
         self.formula = formula
         self.assert_cmds = self.formula[0].assert_cmd
         self.free_variables = self.formula[1]
