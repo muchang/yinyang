@@ -26,10 +26,10 @@ class DafnyCodeBlock(CodeBlock):
 
     def init_block(self):
 
-        if isinstance(self.expression, str):
-            self.assignee = str(self.expression).replace("!", "").replace("$", "").replace(".", "")
+        # if isinstance(self.expression, str):
+        #     self.assignee = str(self.expression).replace("!", "").replace("$", "").replace(".", "")
 
-        elif self.expression.op == ITE:
+        if self.expression.op == ITE:
             
             condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             branch1 = DafnyCodeBlock(condition.tmpid, self.env, self.context, self.args, self.expression.subterms[1])
