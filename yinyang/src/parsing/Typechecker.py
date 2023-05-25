@@ -41,6 +41,7 @@ from yinyang.src.parsing.Types import (
     STR_SUBSTR, STR_INDEXOF, STR_REPLACE, STR_REPLACE_ALL, STR_REPLACE_RE,
     STR_REPLACE_RE_ALL, STR_TO_CODE, STR_TO_INT, STR_TO_RE, STR_FROM_CODE,
     STR_FROM_INT, STR_IS_DIGIT, RE_RANGE, SELECT, STORE, BV_CONCAT, BVNOT,
+    RE_LOOP,
     BVNEG, BVAND, BVNAND, BVOR, BVNOR, BVXOR, BVXNOR, BVADD, BVSUB, BVMUL,
     BVUDIV, BVUREM, BVSREM, BVSHL, BV_REPEAT, BV_ROTATE_LEFT, BV_ROTATE_RIGHT,
     BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVSMOD,
@@ -439,6 +440,17 @@ def typecheck_re_range(expr, ctxt):
 
     if t1 != STRING_TYPE or t2 != STRING_TYPE:
         raise TypeCheckError(expr, expr, [STRING_TYPE, STRING_TYPE], [t1, t2])
+    return REGEXP_TYPE
+
+
+def typecheck_re_loop(expr, ctxt):
+    """
+    ((_ re.loop i n) RegLan RegLan)
+    """
+    t1 = typecheck_expr(expr.subterms[0], ctxt)
+
+    if t1 != REGEXP_TYPE:
+        raise TypeCheckError(expr, expr, REGEXP_TYPE, t1)
     return REGEXP_TYPE
 
 
@@ -1086,6 +1098,10 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
             # BV extend ops
             if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
                 return annotate(typecheck_bv_extend_ops, expr, ctxt)
+
+            # Special string/reglan ops
+            if RE_LOOP in expr.op:
+                return annotate(typecheck_re_loop, expr, ctxt)
 
         # Handle operators which are not represented as strings,
         # or which did not match any of the above (e.g. functions)

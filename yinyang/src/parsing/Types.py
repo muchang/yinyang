@@ -245,6 +245,14 @@ STRING_OPS = [
     STR_FROM_INT,
 ]
 
+"""
+Special string operations
+
+    ((_ re.loop i n) RegLan RegLan)
+
+"""
+RE_LOOP = "(_ re.loop"
+
 # Array ops
 SELECT = "select"
 STORE = "store"
