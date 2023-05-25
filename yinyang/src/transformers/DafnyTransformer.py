@@ -77,28 +77,31 @@ class DafnyCodeBlock(CodeBlock):
             self.assignee = "- %s" % (unary_minus.identifier)
         
         elif self.expression.op == MINUS and len(self.expression.subterms) > 1:
-            self.assignee = ""
-            for subterm in self.expression.subterms:
-                minus = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-                self.update_with(minus)
-                self.assignee += str(minus.identifier) + " - "
-            self.assignee = self.assignee[:-3]
+            # self.assignee = ""
+            # for subterm in self.expression.subterms:
+            #     minus = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            #     self.update_with(minus)
+            #     self.assignee += str(minus.identifier) + " - "
+            # self.assignee = self.assignee[:-3]
+            self.arith_chain_with(self.expression.subterms, "-")
         
         elif self.expression.op == PLUS:
-            self.assignee = ""
-            for subterm in self.expression.subterms:
-                plus = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-                self.update_with(plus)
-                self.assignee += str(plus.identifier) + " + "
-            self.assignee = self.assignee[:-3]
+            # self.assignee = ""
+            # for subterm in self.expression.subterms:
+            #     plus = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            #     self.update_with(plus)
+            #     self.assignee += str(plus.identifier) + " + "
+            # self.assignee = self.assignee[:-3]
+            self.arith_chain_with(self.expression.subterms, "+")
 
         elif self.expression.op == MULTIPLY:
-            self.assignee = ""
-            for subterm in self.expression.subterms:
-                multiply = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-                self.update_with(multiply)
-                self.assignee += str(multiply.identifier) + " * "
-            self.assignee = self.assignee[:-3]
+            # self.assignee = ""
+            # for subterm in self.expression.subterms:
+            #     multiply = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            #     self.update_with(multiply)
+            #     self.assignee += str(multiply.identifier) + " * "
+            # self.assignee = self.assignee[:-3]
+            self.arith_chain_with(self.expression.subterms, "*")
 
         elif self.expression.op == ABS:
             abs = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -110,36 +113,40 @@ class DafnyCodeBlock(CodeBlock):
             self.assignee = "if %s >= %s then %s else (- %s)" % (abs.identifier, zero, abs.identifier, abs.identifier)
 
         elif self.expression.op == GTE:
-            self.assignee = ""
-            for subterm in self.expression.subterms:
-                gte = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-                self.update_with(gte)
-                self.assignee += str(gte.identifier) + " >= "
-            self.assignee = self.assignee[:-4]
-        
+            # self.assignee = ""
+            # for subterm in self.expression.subterms:
+            #     gte = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            #     self.update_with(gte)
+            #     self.assignee += str(gte.identifier) + " >= "
+            # self.assignee = self.assignee[:-4]
+            self.arith_chain_with(self.expression.subterms, ">=")
+
         elif self.expression.op == GT:
-            self.assignee = ""
-            for subterm in self.expression.subterms:
-                gt = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-                self.update_with(gt)
-                self.assignee += str(gt.identifier) + " > "
-            self.assignee = self.assignee[:-3]
-        
+            # self.assignee = ""
+            # for subterm in self.expression.subterms:
+            #     gt = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            #     self.update_with(gt)
+            #     self.assignee += str(gt.identifier) + " > "
+            # self.assignee = self.assignee[:-3]
+            self.arith_chain_with(self.expression.subterms, ">")
+
         elif self.expression.op == LTE:
-            self.assignee = ""
-            for subterm in self.expression.subterms:
-                lte = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-                self.update_with(lte)
-                self.assignee += str(lte.identifier) + " <= "
-            self.assignee = self.assignee[:-4]
+            # self.assignee = ""
+            # for subterm in self.expression.subterms:
+            #     lte = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            #     self.update_with(lte)
+            #     self.assignee += str(lte.identifier) + " <= "
+            # self.assignee = self.assignee[:-4]
+            self.arith_chain_with(self.expression.subterms, "<=")
         
         elif self.expression.op == LT:
-            self.assignee = ""
-            for subterm in self.expression.subterms:
-                lt = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-                self.update_with(lt)
-                self.assignee += str(lt.identifier) + " < "
-            self.assignee = self.assignee[:-3]
+            # self.assignee = ""
+            # for subterm in self.expression.subterms:
+            #     lt = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            #     self.update_with(lt)
+            #     self.assignee += str(lt.identifier) + " < "
+            # self.assignee = self.assignee[:-3]
+            self.arith_chain_with(self.expression.subterms, "<")
         
         elif self.expression.op == DIV:
             self.assignee = ""
@@ -261,6 +268,24 @@ class DafnyCodeBlock(CodeBlock):
         self.statements.extend(codeblock.statements)
         self.env = codeblock.env
         self.tmpid = codeblock.tmpid
+
+    def arith_chain_with(self, subterms, symbol):
+        self.assignee = ""
+        identifier = "tmp_"+self.tmpid
+        self.tmpid += 1
+        if self.args.real_support:
+            self.statements.append("var %s := new real[%s];" % (identifier, len(subterms)))
+        else:
+            self.statements.append("var %s := new int[%s];" % (identifier, len(subterms)))
+        index = 0
+        for subterm in self.expression.subterms:
+            codeblock = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            self.update_with(codeblock)
+            self.statements.append("%s[%s] := %s;" % (identifier, index, codeblock.identifier))
+            self.assignee += "%s[%s]" % (identifier, index) + " " + symbol + " "
+            index += 1
+        self.assignee = self.assignee[:-(len(symbol)+2)]
+        return
     
 class DafnyAssertBlock(DafnyCodeBlock):
 
