@@ -168,9 +168,12 @@ def typecheck_eq(expr, ctxt=[]):
     """(par (A) (= A A Bool :chainable))
     (par (A) (distinct A A Bool :pairwise))
     """
-    assert isinstance(expr, Term), f"expr represented as {type(expr)}: {str(expr)}"
-    assert expr.subterms, "Equality-check: expr should have subterms"
-    assert len(expr.subterms) >= 2, "Equality-check: expr should have at least two subterms"
+    assert isinstance(expr, Term),\
+        f"expr represented as {type(expr)}: {str(expr)}"
+    assert expr.subterms,\
+        "Equality-check: expr should have subterms"
+    assert len(expr.subterms) >= 2,\
+        "Equality-check: expr should have at least two subterms"
     typ = typecheck_expr(expr.subterms[0], ctxt)
     for term in expr.subterms[1:]:
         t = typecheck_expr(term, ctxt)
@@ -916,7 +919,8 @@ def typecheck_quantifiers(expr, ctxt):
 
 
 def typecheck_core(expr, ctxt):
-    assert isinstance(expr, Term), f"expr represented as {type(expr)}: {str(expr)}"
+    assert isinstance(expr, Term),\
+        f"expr represented as {type(expr)}: {str(expr)}"
     if expr.op == NOT:
         return typecheck_not(expr, ctxt)
     if expr.op in [AND, OR, XOR, IMPLIES]:
@@ -1018,14 +1022,16 @@ def annotate(f, expr, ctxt):
     ctxt: context
     :returns: type of expr
     """
-    assert isinstance(expr, Term), f"expr represented as {type(expr)}: {str(expr)}"
+    assert isinstance(expr, Term),\
+        f"expr represented as {type(expr)}: {str(expr)}"
     t = f(expr, ctxt)
     expr.type = t
     return t
 
 
 def typecheck_expr(expr: Term, ctxt=Context({}, {})):
-    assert isinstance(expr, Term), f"expr represented as {type(expr)}: {str(expr)}"
+    assert isinstance(expr, Term),\
+        f"expr represented as {type(expr)}: {str(expr)}"
     if expr.is_const:
         return expr.type
     if expr.is_var or expr.is_indexed_id:
@@ -1102,7 +1108,8 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
                     (c.isspace() or c in ["(", ")"] or i == 0)
                 ):
                     t = signature[i:].strip()
-                    assert len(t) > 0, f"function signature should have at least one word (key: {key})"
+                    assert len(t) > 0,\
+                        f"function signature blank or empty (key: {key})"
                     t = sort2type(t)
                     expr.type = t
                     return t
