@@ -96,7 +96,7 @@ class DafnyFuzzer(Fuzzer):
             return None, None
 
         self.currentseeds.append(pathlib.Path(seed).stem)
-        script, glob = parse_file(seed, silent=True)
+        script, glob, _ = parse_file(seed, silent=True)
 
         if not script:
 
