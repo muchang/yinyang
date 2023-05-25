@@ -271,7 +271,7 @@ class DafnyCodeBlock(CodeBlock):
 
     def arith_chain_with(self, subterms, symbol):
         self.assignee = ""
-        identifier = "tmp_"+self.tmpid
+        identifier = "tmp_"+str(self.tmpid)
         self.tmpid += 1
         if self.args.real_support:
             self.statements.append("var %s := new real[%s];" % (identifier, len(subterms)))
@@ -457,18 +457,21 @@ class DafnyTransformer(Transformer):
             for method in self.assert_methods:
                 text += str(method)
                 assert_identifiers.append(str(method.identifier))
-            text += "\nvar oracle := " + " && ".join(assert_identifiers) + ";"
-            text += "\nassert (! oracle);\n"
+            text += "\nvar oracle := multiset({%s});" % ", ".join(assert_identifiers)
+            #text += "\nvar oracle := " + " && ".join(assert_identifiers) + ";"
+            #text += "\nassert (! oracle);\n"
+            text += "\nvar assertion := if false in oracle then true else false;\n"
+            text += "assert assertion;\n"
             text += "}"
         return text
     
     def generate_args(self):
-        args_text = "("
+        args_text = ""
         for var in self.context.free_vars:
             args_text += str(var).replace("!", "").replace("$", "").replace(".", "") + ": " + str(self.context.free_vars[var]) + ", "
         for var in self.env.div_vars:
             args_text += str(var).replace("!", "").replace("$", "").replace(".", "") + ": " + str(self.env.div_vars[var]) + ", "
-        args_text = args_text[:-2] + ")"
+        args_text = "(" + args_text[:-2] + ")"
         return args_text
 
 class DafnyMethod(CodeBlock):

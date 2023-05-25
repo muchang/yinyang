@@ -148,10 +148,10 @@ def parse(parse_fct, arg, timeout_limit, silent=True):
     except KeyboardInterrupt:
         print("Parser timed out or was interrupted.")
     except Exception as e:
-        if not silent:
-            print("Error generating the AST.")
-            print(e)
-            traceback.print_exc(file=sys.stdout)
+        # if not silent:
+        print("Error generating the AST.")
+        print(e)
+        traceback.print_exc(file=sys.stdout)
     return script, globs, defines
 
 

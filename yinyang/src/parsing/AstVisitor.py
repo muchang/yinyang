@@ -159,9 +159,10 @@ class AstVisitor(SMTLIBv2Visitor):
             sorted_vars = []
             for var in ctx.function_def().sorted_var():
                 sorted_vars.append(self.visitSorted_var(var))
+            output_sort = self.visitSort(ctx.function_def().sort())
+            input_sorts = ""
             identifier = self.visitSymbol(ctx.function_def().symbol())
             sorted_vars = " ".join(sorted_vars)
-            identifier = self.visitSymbol(ctx.symbol()[0])
             self.add_to_globals(identifier, input_sorts, output_sort)
             self.add_to_defines(
                 identifier, sorted_vars,
