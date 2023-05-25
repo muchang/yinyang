@@ -501,7 +501,7 @@ def typecheck_string_ops(expr, ctxt):
     if expr.op in [STR_REPLACE, STR_REPLACE_ALL]:
         return typecheck_replace(expr, ctxt)
     if expr.op in [STR_REPLACE_RE, STR_REPLACE_RE_ALL]:
-        return typecheck_replace(expr, ctxt)
+        return typecheck_replace_re(expr, ctxt)
     if expr.op in [STR_TO_CODE, STR_TO_INT]:
         return typecheck_str_to_int(expr, ctxt)
     if expr.op == STR_TO_RE:
