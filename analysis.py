@@ -15,14 +15,6 @@ fi = open(sys.argv[1], "r")
 lines = [l.strip() for l in fi.readlines()]
 fi.close()
 
-# Settings
-skip_benchmarks = ["FP", "U", "DT"]
-print("--- Settings ---")
-for b in skip_benchmarks:
-    print(b, end=" ")
-print("disabled")
-print("----------------")
-
 # General stats
 categories = [
     "Parsing errors (excluding timeouts)",
@@ -30,8 +22,11 @@ categories = [
     "Typechecker timeouts",
     "Assertion errors (typechecking)",
     "Unknown function/constant (typechecking)",
-    "'BITVECTOR_TYPE' object has no attribute 'strip' (typechecking)",
     "Ill-typed expression",
+    "can only concatenate str",
+    "__repr__ returned non-string",
+    "'str' object has no attribute",
+    "argument of type 'Term' is not iterable",
     "Other"
 ]
 scripts = [set() for _ in range(len(categories))]
@@ -45,22 +40,10 @@ parser_flag = False
 typechecker_flag = False
 for l in lines:
     # Path
-    if l.startswith("[scripts/"):
+    if l.startswith("[") and ".smt2" in l: # l.startswith("[scripts/"):
         # Identify path, benchmark and error message
         path = l.split(" ")[0][1:-1]
-        benchmark = path.split("/")[1]
-        if benchmark == "incremental":
-            benchmark += "/" + path.split("/")[2]
         error = l[(len(path) + 3):]  # [] and space
-
-        # Skip unwanted benchmarks
-        skip = False
-        for b in skip_benchmarks:
-            if b in benchmark:
-                skip = True
-                break
-        if skip:
-            continue
 
         # Count errors
         total_errors += 1
@@ -89,13 +72,23 @@ for l in lines:
         if error.startswith("unknown function/constant"):
             scripts[4].add(path)
             continue
-        # 'BITVECTOR_TYPE' object has no attribute 'strip'
-        if error == "'BITVECTOR_TYPE' object has no attribute 'strip'":
-            scripts[5].add(path)
-            continue
         # Ill-typed expression
         if error == "Ill-typed expression":
+            scripts[5].add(path)
+            continue
+        # can only concatenate str
+        if error.startswith("can only concatenate str"):
             scripts[6].add(path)
+            continue
+        # __repr__ returned non-string
+        if error.startswith("__repr__ returned non-string"):
+            scripts[7].add(path)
+            continue
+        if error.startswith("'str' object has no attribute"):
+            scripts[8].add(path)
+            continue
+        if error.startswith("argument of type 'Term' is not iterable"):
+            scripts[9].add(path)
             continue
         # Other
         scripts[len(categories) - 1].add(path)
@@ -145,8 +138,8 @@ for cat, s in zip(categories, scripts):
     print(f" - Writing {fn}")
     sorted = [script for script in s]
     sorted.sort()
-    fo = open(to_file_name(cat), "w")
+    f_o = open(to_file_name(cat), "w")
     for script in sorted:
-        fo.write(f"{script}\n")
-    fo.close()
+        f_o.write(f"{script}\n")
+    f_o.close()
 
