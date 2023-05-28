@@ -6,7 +6,7 @@ from yinyang.src.parsing.Parse import parse_file
 from yinyang.src.parsing.Typechecker import typecheck
 
 if len(sys.argv) < 2:
-    print("Usage: typecheck.py <smt2-file> [--silent | --moderatelyverbose]")
+    print("Usage: typecheck.py <smt2-file> [--silent | --info]")
     exit(2)
 
 def typecheck_smt2(fn):  
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         except Exception as e:
             if sys.argv[2] == "--silent":
                 print(sys.argv[1])
-            elif sys.argv[2] == "--moderatelyverbose":
+            elif sys.argv[2] == "--info":
                 print(f"[{sys.argv[1]}] {str(e)}")
             else:
                 print(f"Unknown flag {sys.argv[2]}")
