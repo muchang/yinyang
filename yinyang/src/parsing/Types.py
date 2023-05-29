@@ -28,6 +28,8 @@ from ffg.gen.gen_configuration import (
     BITVECTOR_OPTION
 )
 
+import re
+
 BOOLEAN_TYPE = "Bool"
 REAL_TYPE = "Real"
 INTEGER_TYPE = "Int"
@@ -64,6 +66,7 @@ def type2ffg(typ):
         return None
 
 
+"""
 def sort2type(sort):
     if "FloatingPoint" in sort:
         eb = int(sort.split(" ")[2])
@@ -81,6 +84,115 @@ def sort2type(sort):
         return ARRAY_TYPE(sort2type(types[1]), sort2type(types[2]))
 
     return sort
+"""
+
+
+def sort2type(sort):
+    """
+    Possible types are:
+        * Boolean
+        * Real
+        * Integer
+        * Roundingmode
+        * String
+        * Regexp
+        ...
+        * Array
+        * BitVector
+        * FloatingPoint
+    
+    Approach:
+        1. Identify last subexpression (possibly in parentheses)
+        2. Use that to determine the final type
+
+    """
+    # Base case: None
+    if sort is None:
+        return UNKNOWN
+
+    # Base case: empty
+    sort = sort.strip()
+    if len(sort) == 0:
+        return UNKNOWN  # TODO: Raise UnknownType instead?!
+    
+    # 1. Identify last subexpression
+    last_subexpr = None
+    par_level = 0
+    for x in range(len(sort)):
+        # Go through the string backwards
+        i = len(sort) - 1 - x
+        c = sort[i]
+        if c == ")":
+            par_level += 1
+        elif c == "(":
+            par_level -= 1
+        # Stop if all parentheses have cancelled each other out
+        if (
+            par_level == 0 and
+            (c.isspace() or c in ["(", ")"] or i == 0)
+        ):
+            last_subexpr = sort[i:].strip()
+            assert len(last_subexpr) > 0,\
+                f"faulty sort '{sort}'"
+            break
+    
+    # 2. Convert last subexpression to type
+    if last_subexpr == "Bool":
+        return BOOLEAN_TYPE
+    elif last_subexpr == "Real":
+        return REAL_TYPE
+    elif last_subexpr == "Int":
+        return INTEGER_TYPE
+    # TODO: Rounding mode
+    elif last_subexpr == "String":
+        return STRING_TYPE
+    elif last_subexpr == "RegLan":
+        # TODO: find an occurence of this in the benchmarks
+        return REGEXP_TYPE
+
+    # Array
+    pattern = re.compile(r"\(Array (.+)\)")
+    match = pattern.fullmatch(last_subexpr)
+    if match is not None:
+        index_and_payload = match.group(1)
+        # Split index and payload by counting parentheses
+        index = None
+        payload = None
+        par_level = 0
+        for i in range(len(index_and_payload)):
+            # Go through the string (forward)
+            c = index_and_payload[i]
+            if c == "(":
+                par_level += 1
+            elif c == ")":
+                par_level -= 1
+            # Stop if all parentheses have cancelled each other out
+            if (
+                par_level == 0 and
+                (c.isspace() or c in ["(", ")"])
+            ):
+                # .strip() will be called on sort2type argument
+                index = index_and_payload[0:i + 1]
+                payload = index_and_payload[i + 1:]
+                break
+        assert index is not None and payload is not None,\
+            "Array index and payload type could not be determined"
+        return ARRAY_TYPE(sort2type(index), sort2type(payload))
+
+    # BitVector
+    pattern = re.compile(r"\(_ BitVec ([0-9]+)\)")
+    match = pattern.fullmatch(last_subexpr)
+    if match is not None:
+        try:
+            bitwidth = int(match.group(1))
+            return BITVECTOR_TYPE(bitwidth)
+        except ValueError:
+            assert False, "Bitwidth could not be determined"
+
+    # TODO: FloatingPoint
+
+    print(f"About to return UNKNOWN for '{sort}'")
+    return UNKNOWN
 
 
 class ARRAY_TYPE:

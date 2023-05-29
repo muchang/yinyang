@@ -1107,28 +1107,14 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
         # or which did not match any of the above (e.g. functions)
         key = expr.op.__str__()
         if key in ctxt.globals:
-            signature: str = ctxt.globals[key].strip()
-            # Careful: do we have parentheses?!
-            par_level = 0
-            for x in range(len(signature)):
-                # Go through the string backwards
-                i = len(signature) - 1 - x
-                c = signature[i]
-                if c == ")":
-                    par_level += 1
-                elif c == "(":
-                    par_level -= 1
-                # Stop if all parentheses have cancelled each other out
-                if (
-                    par_level == 0 and
-                    (c.isspace() or c in ["(", ")"] or i == 0)
-                ):
-                    t = signature[i:].strip()
-                    assert len(t) > 0,\
-                        f"function signature blank or empty (key: {key})"
-                    t = sort2type(t)
-                    expr.type = t
-                    return t
+            sort: str = ctxt.globals[key].strip()
+            assert len(sort) > 0,\
+                f"sort blank or empty (key: {key})"
+            t = sort2type(sort)
+            if t is None:
+                raise UnknownType(expr)
+            expr.type = t
+            return t
         
         raise UnknownOperator(expr.op)
 
