@@ -28,6 +28,7 @@ TYPECHECKING = "typechecking"
 OPERATIONS = [PARSING, TYPECHECKING]
 
 # Outcomes
+UNSUPPORTED_FILE = "unsupported-file"
 SUCCESS = "success"
 TIMEOUT = "timeout"
 CRASH = "crash"
@@ -58,13 +59,19 @@ if __name__ == "__main__":
 
     """
     1. Attempt to parse the script. Possible outcomes:
+        * Unsupported file (happens with GIT-LFS for instance)
         * Parsing succeeds (within acceptable time)
         * Parsing times out
         * Parsing crashes
         * Parsing error (i.e. parser claims source is not valid)
     """
     try:
-        script, globs = parse_filestream(fn, TIMEOUT_LIMIT)
+        attempt = parse_filestream(fn, TIMEOUT_LIMIT)
+        if attempt is None:
+            # Unsupported file
+            log(fn, verbosity_level, PARSING, UNSUPPORTED_FILE)
+            exit(1)
+        script, globs = attempt
     except KeyboardInterrupt:
         # Timeout
         log(fn, verbosity_level, PARSING, TIMEOUT)
