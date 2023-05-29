@@ -137,6 +137,10 @@ def sort2type(sort):
             break
     
     # 2. Convert last subexpression to type
+    # TODO: is this actually any good?
+    if last_subexpr in TYPES:
+        return last_subexpr
+    """
     if last_subexpr == "Bool":
         return BOOLEAN_TYPE
     elif last_subexpr == "Real":
@@ -149,6 +153,7 @@ def sort2type(sort):
     elif last_subexpr == "RegLan":
         # TODO: find an occurence of this in the benchmarks
         return REGEXP_TYPE
+    """
 
     # Array
     pattern = re.compile(r"\(Array (.+)\)")
@@ -190,6 +195,26 @@ def sort2type(sort):
             assert False, "Bitwidth could not be determined"
 
     # TODO: FloatingPoint
+    # (_ FloatingPoint eb sb)
+    pattern = re.compile(r"\(_ FloatingPoint ([0-9]+) ([0-9]+)\)")
+    match = pattern.fullmatch(last_subexpr)
+    if match is not None:
+        try:
+            eb = int(match.group(1))
+            sb = int(match.group(2))
+            return FP_TYPE(eb, sb)
+        except ValueError:
+            assert False, "eb and sb could not be determined"
+    # Short names:
+    shortcuts = {
+        "Float16": FP_TYPE(5, 11),
+        "Float32": FP_TYPE(8, 24),
+        "Float64": FP_TYPE(11, 53),
+        "Float128": FP_TYPE(15, 113)
+    }
+    fp_t = shortcuts.get(last_subexpr)
+    if fp_t is not None:
+        return fp_t
 
     print(f"About to return UNKNOWN for '{sort}'")
     return UNKNOWN
