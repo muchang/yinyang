@@ -145,22 +145,33 @@ class AstVisitor(SMTLIBv2Visitor):
                 self.visitTerm(ctx.term()[0], {}),
             )
 
+        # Issue in this function:
+        # * local_vars are empty
+        # * sorted_vars are not used for TC purposes
+        # * should sorted_vars (in a different datastructure) be used as local_vars?
         if ctx.cmd_defineFun():
             sorted_vars = []
+            local_vars = {}
             for var in ctx.function_def().sorted_var():
                 sorted_vars.append(self.visitSorted_var(var))
+                id = self.visitSymbol(var.symbol())
+                sort = self.visitSort(var.sort())
+                local_vars[id] = sort2type(sort)
             identifier = self.visitSymbol(ctx.function_def().symbol())
+            # print(f"Sorted vars: {str(sorted_vars)} ({type(sorted_vars)})")
             sorted_vars = " ".join(sorted_vars)
             self.add_to_globals(
                 identifier, sorted_vars,
                 self.visitSort(ctx.function_def().sort())
             )
-            return DefineFun(
+            DF = DefineFun(
                 identifier,
                 sorted_vars,
                 self.visitSort(ctx.function_def().sort()),
-                self.visitTerm(ctx.function_def().term(), {}),
+                self.visitTerm(ctx.function_def().term(), local_vars), # HERE: sorted_vars??
             )
+            # print(f"FUNCTION DEF: {str(DF)}")
+            return DF
 
         if ctx.cmd_defineFunRec():
             sorted_vars = []
