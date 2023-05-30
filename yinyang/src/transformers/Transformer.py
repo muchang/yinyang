@@ -58,14 +58,16 @@ class Context:
         self.free_vars.update(context.free_vars)
         self.let_vars.update(context.let_vars)
         self.defined_vars.update(context.defined_vars)
-
+        
 class Environment:
     def __init__(self):
         self.methods = []
         self.global_vars = {}
         self.div_vars = {}
+        self.div_exps = {}
     
     def add_environment(self, env: 'Environment'):
         self.methods.extend(env.methods)
         self.global_vars.update(env.global_vars)
         self.div_vars.update(env.div_vars)
+        self.div_exps.update(env.div_exps)

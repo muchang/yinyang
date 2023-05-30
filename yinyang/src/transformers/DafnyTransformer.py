@@ -151,9 +151,13 @@ class DafnyCodeBlock(CodeBlock):
         elif self.expression.op == DIV:
             self.assignee = ""
             # free variable for division by zero
-            free_var = "div_%s" % self.tmpid
-            self.tmpid += 1
-            self.env.div_vars[free_var] = "int"
+            if str(self.expression) not in self.env.div_exps:
+                free_var = "div_%s" % self.tmpid
+                self.tmpid += 1
+                self.env.div_vars[free_var] = "int"
+                self.env.div_exps[str(self.expression)] = free_var
+            else:
+                free_var = self.env.div_exps[str(self.expression)]    
             # first subterm is the dividend
             condition = "true && "
             div = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -173,9 +177,13 @@ class DafnyCodeBlock(CodeBlock):
         elif self.expression.op == MOD:
             self.assignee = ""
             # free variable for division by zero
-            free_var = "mod_%s" % self.tmpid
-            self.tmpid += 1
-            self.env.div_vars[free_var] = "int"
+            if str(self.expression) not in self.env.div_exps:
+                free_var = "mod_%s" % self.tmpid
+                self.tmpid += 1
+                self.env.div_vars[free_var] = "int"
+                self.env.div_exps[str(self.expression)] = free_var
+            else:
+                free_var = self.env.div_exps[str(self.expression)] 
             # first subterm is the dividend
             condition = "true && "
             mod = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -195,11 +203,15 @@ class DafnyCodeBlock(CodeBlock):
         elif self.expression.op == REAL_DIV:
             self.assignee = ""
             # free variable for division by zero
-            free_var = "div_%s" % self.tmpid
-            self.tmpid += 1
-            self.env.div_vars[free_var] = "real"
-            # first subterm is the dividend
+            if str(self.expression) not in self.env.div_exps:
+                free_var = "div_%s" % self.tmpid
+                self.tmpid += 1
+                self.env.div_vars[free_var] = "real"
+                self.env.div_exps[str(self.expression)] = free_var
+            else:
+                free_var = self.env.div_exps[str(self.expression)]    
             condition = "true && "
+            # first subterm is the dividend
             real_div = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             self.update_with(real_div)
             assignee = real_div.identifier + " / "
