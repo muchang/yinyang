@@ -153,8 +153,8 @@ class AstVisitor(SMTLIBv2Visitor):
             sorted_vars = []
             local_vars = {}
             for var in ctx.function_def().sorted_var():
-                symbol = var.symbol()
-                sort = var.sort()
+                symbol = self.visitSymbol(var.symbol())
+                sort = self.visitSort(var.sort())
                 sorted_vars.append(f"({symbol} {sort})")
                 assert sorted_vars[-1] == self.visitSorted_var(var)
                 local_vars[symbol] = sort2type(sort)
