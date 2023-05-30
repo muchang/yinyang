@@ -153,25 +153,23 @@ class AstVisitor(SMTLIBv2Visitor):
             sorted_vars = []
             local_vars = {}
             for var in ctx.function_def().sorted_var():
-                sorted_vars.append(self.visitSorted_var(var))
-                id = self.visitSymbol(var.symbol())
-                sort = self.visitSort(var.sort())
-                local_vars[id] = sort2type(sort)
+                symbol = var.symbol()
+                sort = var.sort()
+                sorted_vars.append(f"({symbol} {sort})")
+                assert sorted_vars[-1] == self.visitSorted_var(var)
+                local_vars[symbol] = sort2type(sort)
             identifier = self.visitSymbol(ctx.function_def().symbol())
-            # print(f"Sorted vars: {str(sorted_vars)} ({type(sorted_vars)})")
             sorted_vars = " ".join(sorted_vars)
             self.add_to_globals(
                 identifier, sorted_vars,
                 self.visitSort(ctx.function_def().sort())
             )
-            DF = DefineFun(
+            return DefineFun(
                 identifier,
                 sorted_vars,
                 self.visitSort(ctx.function_def().sort()),
-                self.visitTerm(ctx.function_def().term(), local_vars), # HERE: sorted_vars??
+                self.visitTerm(ctx.function_def().term(), local_vars), # HERE: sorted vars (converted)??
             )
-            # print(f"FUNCTION DEF: {str(DF)}")
-            return DF
 
         if ctx.cmd_defineFunRec():
             sorted_vars = []
