@@ -531,6 +531,12 @@ class Term:
         parent=None,
     ):
 
+        # Check whether subterms are corectly represented
+        if subterms is not None:
+            for term in self.subterms:
+                assert isinstance(term, Term),\
+                    f"term '{str(term)}' represented as '{type(term)}' in AST"
+
         self._initialize(
             name=name,
             type=type,
@@ -587,11 +593,7 @@ class Term:
         """
         if self.subterms:
             for term in self.subterms:
-                assert isinstance(term, Term),\
-                    f"term '{str(term)}' represented as '{type(term)}' in AST"
                 term.parent = self
-                # if not isinstance(term, str):
-                #     term.parent = self
 
     def find_all(self, e, occs):
         """
