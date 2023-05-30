@@ -215,17 +215,18 @@ class DafnyCodeBlock(CodeBlock):
             self.assignee += "if %s then %s else %s" % (condition, assignee, free_var)
         
         elif self.expression.let_terms != None:
+            context = copy.deepcopy(self.context)
             for let_term_idx in range(len(self.expression.let_terms)):
-                letterm = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.let_terms[let_term_idx])
+                letterm = DafnyCodeBlock(self.tmpid, self.env, context, self.args, self.expression.let_terms[let_term_idx])
                 self.update_with(letterm)
                 letvar = str(self.expression.var_binders[let_term_idx]).replace("!", "").replace("$","").replace(".", "").replace("~", "")
-                if letvar in self.context.let_vars:
-                    self.context.let_vars[letvar] = letterm.identifier
+                if letvar in context.let_vars:
+                    context.let_vars[letvar] = letterm.identifier
                     self.statements.append("%s := %s;" % (letvar, letterm.identifier))
                 else:
-                    self.context.let_vars[letvar] = letterm.identifier
+                    context.let_vars[letvar] = letterm.identifier
                     self.statements.append("var %s := %s;" % (letvar, letterm.identifier))
-            letblock = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+            letblock = DafnyCodeBlock(self.tmpid, self.env, context, self.args, self.expression.subterms[0])
             self.update_with(letblock)
             self.assignee = letblock.identifier
         

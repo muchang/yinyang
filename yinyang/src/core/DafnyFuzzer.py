@@ -90,10 +90,10 @@ class DafnyFuzzer(Fuzzer):
         self.strategy = self.args.mutation_engine
 
     def process_seed(self, seed):
-        if not admissible_seed_size(seed, self.args):
-            self.statistic.invalid_seeds += 1
-            logging.debug("Skip invalid seed: exceeds max file size")
-            return None, None
+        # if not admissible_seed_size(seed, self.args):
+        #     self.statistic.invalid_seeds += 1
+        #     logging.debug("Skip invalid seed: exceeds max file size")
+        #     return None, None
 
         self.currentseeds.append(pathlib.Path(seed).stem)
         script, glob, _ = parse_file(seed, silent=True)

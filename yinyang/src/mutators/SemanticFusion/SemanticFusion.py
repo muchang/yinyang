@@ -88,7 +88,7 @@ class SemanticFusion(Mutator):
                 curr.append(line)
 
         for _, mr in enumerate(_mrs):
-            template, _ = parse_str(mr)
+            template, _, _ = parse_str(mr)
             if (get_z_idx(template) != self.multiple_variables):
                 continue
             populate_template_map(self.templates, template)
