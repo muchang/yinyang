@@ -533,7 +533,7 @@ class Term:
 
         # Check whether subterms are corectly represented
         if subterms is not None:
-            for term in self.subterms:
+            for term in subterms:
                 assert isinstance(term, Term),\
                     f"term '{str(term)}' represented as '{type(term)}' in AST"
 
