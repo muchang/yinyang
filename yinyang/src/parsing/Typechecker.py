@@ -1105,14 +1105,17 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
 
         # Handle operators which are not represented as strings,
         # or which did not match any of the above (e.g. functions)
+        # TODO: What really is this segemnt?
         key = expr.op.__str__()
         if key in ctxt.globals:
-            sort: str = ctxt.globals[key].strip()
-            assert len(sort) > 0,\
-                f"sort blank or empty (key: {key})"
-            t = sort2type(sort)
+            t = ctxt.globals[key]
             if t is None:
                 raise UnknownType(expr)
+            if isinstance(t, str):
+                t = t.strip()
+                assert len(t) > 0,\
+                    f"sort blank or empty (key: {key})"
+                t = sort2type(t)
             expr.type = t
             return t
         

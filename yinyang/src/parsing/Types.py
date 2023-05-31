@@ -88,6 +88,7 @@ def sort2type(sort):
 
 
 def sort2type(sort):
+    # TODO: improve on this draft
     """
     Possible types are:
         * Boolean
@@ -216,8 +217,10 @@ def sort2type(sort):
     if fp_t is not None:
         return fp_t
 
-    print(f"About to return UNKNOWN for '{sort}'")
-    return UNKNOWN
+    # TODO: raise an Exception here instead of returning UNKNOWN?
+    # print(f"About to return UNKNOWN for '{sort}'")
+    raise Exception(f"UNKNOWN sort2type: {sort}")
+    # return UNKNOWN
 
 
 class ARRAY_TYPE:
