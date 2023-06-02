@@ -617,7 +617,7 @@ class Term:
         for occ in occs:
             occ._initialize(
                 name=copy.deepcopy(repl.name),
-                type=copy.deepcopy(repl.type),
+                ttype=copy.deepcopy(repl.type),
                 is_const=copy.deepcopy(repl.is_const),
                 is_var=copy.deepcopy(repl.is_var),
                 label=copy.deepcopy(repl.label),
