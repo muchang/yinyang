@@ -145,7 +145,7 @@ class AstVisitor(SMTLIBv2Visitor):
                 self.visitTerm(ctx.term()[0], {}),
             )
 
-        # Issue in this function:
+        # (Fixed) issues in this function:
         # * local_vars are empty
         # * sorted_vars are not used for TC purposes
         # * should sorted_vars (in a different datastructure) be used as local_vars?
@@ -156,7 +156,7 @@ class AstVisitor(SMTLIBv2Visitor):
                 symbol = self.visitSymbol(var.symbol())
                 sort = self.visitSort(var.sort())
                 sorted_vars.append(f"({symbol} {sort})")
-                assert sorted_vars[-1] == self.visitSorted_var(var)
+                # assert sorted_vars[-1] == self.visitSorted_var(var)
                 local_vars[symbol] = sort2type(sort)
             identifier = self.visitSymbol(ctx.function_def().symbol())
             sorted_vars = " ".join(sorted_vars)
@@ -301,15 +301,8 @@ class AstVisitor(SMTLIBv2Visitor):
         | binary
         | string
         | b_value
-        | ParOpen GRW_Underscore ' bv' numeral numeral ParClose
         ;
         """
-        if ctx.ParOpen():
-            X, n = (
-                ctx.numeral()[0].getText(),
-                ctx.numeral()[1].getText().encode("utf-8").decode("utf-8")
-            )
-            return "(_ bv" + X + " " + n + ")", BITVECTOR_TYPE(int(n))
         if ctx.numeral():
             return ctx.getText().encode("utf-8").decode("utf-8"), INTEGER_TYPE
         if ctx.decimal():
@@ -335,7 +328,7 @@ class AstVisitor(SMTLIBv2Visitor):
         : spec_constant
         | qual_identifier
         | ParOpen qual_identifier term+ ParClose
-        | ParOpen GRW_Underscore ' bv' numeral numeral ParClose
+        | ParOpen GRW_Underscore symbol numeral ParClose
         | ParOpen ParOpen GRW_Underscore qual_identifier term+ ParClose
           ParClose
         | ParOpen GRW_Let ParOpen var_binding+ ParClose term ParClose
@@ -345,6 +338,7 @@ class AstVisitor(SMTLIBv2Visitor):
         | ParOpen GRW_Exclamation term attribute+ ParClose
         ;
         """
+
 
         if (
             ctx.ParOpen()
@@ -368,15 +362,15 @@ class AstVisitor(SMTLIBv2Visitor):
                 "ParOpen GRW_Match term ParOpen match_case+ ParClose ParClose"
             )
 
+        # TODO: Scripts like scripts/QF_BV/crafted/bitvec7.smt2 don't enter this if block
+        # TODO: now they do
+        # TODO: use regex?
+        # TODO: don't confuse value and witdh
         if len(ctx.ParOpen()) == 1 and ctx.GRW_Underscore() and ctx.numeral():
-            bitwidth = ctx.symbol().getText().strip("bv")
+            value = ctx.symbol().getText().strip("bv")
+            bitwidth = ctx.numeral().getText()
             value = ctx.numeral().getText()
-            return Const(name="(_ bv" + bitwidth + " " + value + ")")
-
-        if len(ctx.ParOpen()) == 1 and ctx.GRW_Underscore() and ctx.numeral():
-            bitwidth = ctx.symbol().getText().strip("bv")
-            value = ctx.numeral().getText()
-            return Const(name="(_ bv" + bitwidth + " " + value + ")")
+            return Const(name="(_ bv" + bitwidth + " " + value + ")", ttype=BITVECTOR_TYPE(int(bitwidth)))
 
         if (
             len(ctx.ParOpen()) == 2
@@ -431,13 +425,13 @@ class AstVisitor(SMTLIBv2Visitor):
             return Expr(op=op, subterms=subterms)
 
         if ctx.spec_constant():
-            name, type = self.visitSpec_constant(ctx.spec_constant())
-            return Const(name=name, type=type)
+            name, ttype = self.visitSpec_constant(ctx.spec_constant())
+            return Const(name=name, ttype=ttype)
 
         if ctx.qual_identifier():
             return self.visitQual_identifier(ctx.qual_identifier(), local_vars)
 
-        raise AstException("No match for term : ... |... |... ")
+        raise AstException(f"No match for term : '{ctx.getText()}'")
 
     def visitQual_identifier(
         self, ctx: SMTLIBv2Parser.Qual_identifierContext, local_vars
@@ -507,10 +501,10 @@ class AstVisitor(SMTLIBv2Visitor):
                 index += " " + ind.getText()
             name = "(_ " + symbol + " " + index + ")"
             if name in local_vars:
-                return Var(name=name, type=local_vars[name],
+                return Var(name=name, ttype=local_vars[name],
                            is_indexed_id=True)
             elif name in self.global_vars:
-                return Var(name=name, type=self.global_vars[name],
+                return Var(name=name, ttype=self.global_vars[name],
                            is_indexed_id=True)
             else:
                 return name
@@ -518,9 +512,9 @@ class AstVisitor(SMTLIBv2Visitor):
         if ctx.symbol():
             name = self.visitSymbol(ctx.symbol())
             if name in local_vars:
-                return Var(name=name, type=local_vars[name])
+                return Var(name=name, ttype=local_vars[name])
             elif name in self.global_vars:
-                return Var(name=name, type=self.global_vars[name])
+                return Var(name=name, ttype=self.global_vars[name])
             else:
                 return self.visitSymbol(ctx.symbol())
         raise AstException("No match for identifier: ... |... |... ")

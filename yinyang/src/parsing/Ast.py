@@ -474,13 +474,13 @@ class SMTLIBCommand:
         return self.cmd_str.__hash__()
 
 
-def Var(name, type, is_indexed_id=False):
-    return Term(name=name, type=type, is_var=True, is_indexed_id=is_indexed_id)
+def Var(name, ttype, is_indexed_id=False):
+    return Term(name=name, ttype=ttype, is_var=True, is_indexed_id=is_indexed_id)
 
 
-def Const(name, is_indexed_id=False, type="Unknown"):
+def Const(name, is_indexed_id=False, ttype="Unknown"):
     return Term(
-        name=name, type=type, is_const=True, is_indexed_id=is_indexed_id
+        name=name, ttype=ttype, is_const=True, is_indexed_id=is_indexed_id
     )
 
 
@@ -516,7 +516,7 @@ class Term:
     def __init__(
         self,
         name=None,
-        type=None,
+        ttype=None,
         is_const=None,
         is_var=None,
         label=None,
@@ -539,7 +539,7 @@ class Term:
 
         self._initialize(
             name=name,
-            type=type,
+            ttype=ttype,
             is_const=is_const,
             is_var=is_var,
             indices=indices,
@@ -558,7 +558,7 @@ class Term:
     def _initialize(
         self,
         name=None,
-        type=None,
+        ttype=None,
         is_const=None,
         is_var=None,
         label=None,
@@ -573,7 +573,7 @@ class Term:
         parent=None,
     ):
         self.name = name
-        self.type = type
+        self.type = ttype
         self.is_const = is_const
         self.is_var = is_var
         self.label = label
