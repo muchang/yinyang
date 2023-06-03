@@ -1103,21 +1103,13 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
             if RE_LOOP in expr.op:
                 return annotate(typecheck_re_loop, expr, ctxt)
 
-        # Handle operators which are not represented as strings,
-        # or which did not match any of the above (e.g. functions)
-        # TODO: What really is this segemnt?
-        key = expr.op.__str__()
+        # Handle operators which did not match any of the above
+        # For instance, functions
+        key = str(expr.op)
         if key in ctxt.globals:
-            t = ctxt.globals[key]
-            if t is None:
-                raise UnknownType(expr)
-            if isinstance(t, str):
-                t = t.strip()
-                assert len(t) > 0,\
-                    f"sort blank or empty (key: {key})"
-                t = sort2type(t)
-            expr.type = t
-            return t
+            ttype = ctxt.globals[key]
+            expr.ttype = ttype
+            return ttype
         
         raise UnknownOperator(expr.op)
 
