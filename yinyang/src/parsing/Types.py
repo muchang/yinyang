@@ -67,7 +67,6 @@ def type2ffg(typ):
 
 
 def sort2type(sort):
-    # TODO: improve on this draft
     """
     Possible types are:
         * Boolean
@@ -76,14 +75,15 @@ def sort2type(sort):
         * Roundingmode
         * String
         * Regexp
-        ...
+        * -----
         * Array
         * BitVector
         * FloatingPoint
     
     Approach:
         1. Identify last subexpression (possibly in parentheses)
-        2. Use that to determine the final type
+        2. Use that to determine a type
+        3. Raise an exception if no type can be determined
 
     """
     # Base case: None
@@ -117,23 +117,12 @@ def sort2type(sort):
             break
     
     # 2. Convert last subexpression to type
-    # TODO: is this actually any good?
+    # Base types
+    # Note: this may not include UNKNOWN or ALL
+    assert UNKNOWN not in TYPES, "sort2type: do not return UNKNOWN"
+    assert ALL not in TYPES, "sort2type: do not return ALL"
     if last_subexpr in TYPES:
         return last_subexpr
-    """
-    if last_subexpr == "Bool":
-        return BOOLEAN_TYPE
-    elif last_subexpr == "Real":
-        return REAL_TYPE
-    elif last_subexpr == "Int":
-        return INTEGER_TYPE
-    # TODO: Rounding mode
-    elif last_subexpr == "String":
-        return STRING_TYPE
-    elif last_subexpr == "RegLan":
-        # TODO: find an occurence of this in the benchmarks
-        return REGEXP_TYPE
-    """
 
     # Array
     pattern = re.compile(r"\(Array (.+)\)")
@@ -174,7 +163,7 @@ def sort2type(sort):
         except ValueError:
             assert False, "Bitwidth could not be determined"
 
-    # TODO: FloatingPoint
+    # FloatingPoint
     # (_ FloatingPoint eb sb)
     pattern = re.compile(r"\(_ FloatingPoint ([0-9]+) ([0-9]+)\)")
     match = pattern.fullmatch(last_subexpr)
