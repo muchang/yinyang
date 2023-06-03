@@ -66,27 +66,6 @@ def type2ffg(typ):
         return None
 
 
-"""
-def sort2type(sort):
-    if "FloatingPoint" in sort:
-        eb = int(sort.split(" ")[2])
-        sb = int(sort.split(" ")[3][:-1])
-        return FP_TYPE(eb, sb)
-
-    if "BitVec" in sort:
-        bitwidth = int(sort.split(" ")[2][:-1])
-        return BITVECTOR_TYPE(bitwidth)
-
-    # TODO: handle nested arrays, parentheses
-    if sort.startswith("(Array "):
-        types = sort[1:-1].split(" ")
-        assert len(types) == 3, f"Unknown array sort: {sort}"
-        return ARRAY_TYPE(sort2type(types[1]), sort2type(types[2]))
-
-    return sort
-"""
-
-
 def sort2type(sort):
     # TODO: improve on this draft
     """
