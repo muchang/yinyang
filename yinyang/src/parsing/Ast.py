@@ -100,7 +100,7 @@ class Script:
             return
         if e.is_const:
             return
-        if e.is_var and e.type:
+        if e.is_var and e.ttype:
             if e in self.free_var_occs:
                 e.name = prefix + e.name
             return
@@ -617,7 +617,7 @@ class Term:
         for occ in occs:
             occ._initialize(
                 name=copy.deepcopy(repl.name),
-                ttype=copy.deepcopy(repl.type),
+                ttype=copy.deepcopy(repl.ttype),
                 is_const=copy.deepcopy(repl.is_const),
                 is_var=copy.deepcopy(repl.is_var),
                 label=copy.deepcopy(repl.label),
@@ -637,7 +637,7 @@ class Term:
             return False
         if self.name != other.name:
             return False
-        if self.ttype != other.type:
+        if self.ttype != other.ttype:
             return False
         if self.is_const != other.is_const:
             return False
@@ -651,7 +651,7 @@ class Term:
             return False
         if self.quantified_vars != other.quantified_vars:
             return False
-        if self.ttype != other.type:
+        if self.ttype != other.ttype:
             return False
         if self.is_var != other.is_var:
             return False

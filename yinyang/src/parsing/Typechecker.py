@@ -1037,7 +1037,7 @@ def annotate(f, expr, ctxt):
     assert isinstance(expr, Term),\
         f"expr represented as {type(expr)}: {str(expr)}"
     t = f(expr, ctxt)
-    expr.type = t
+    expr.ttype = t
     return t
 
 
@@ -1045,13 +1045,13 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
     assert isinstance(expr, Term),\
         f"expr represented as {type(expr)}: {str(expr)}"
     if expr.is_const:
-        return expr.type
+        return expr.ttype
     if expr.is_var or expr.is_indexed_id:
         if expr.name in ctxt.locals:
-            expr.type = ctxt.locals[expr.name]
+            expr.ttype = ctxt.locals[expr.name]
             return ctxt.locals[expr.name]
         elif expr.name in ctxt.globals:
-            expr.type = ctxt.globals[expr.name]
+            expr.ttype = ctxt.globals[expr.name]
             return ctxt.globals[expr.name]
         raise UnknownType(expr)
     elif expr.op:
