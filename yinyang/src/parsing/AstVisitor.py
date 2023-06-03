@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import re
+
 from yinyang.src.parsing.SMTLIBv2Parser import SMTLIBv2Parser
 from yinyang.src.parsing.SMTLIBv2Visitor import SMTLIBv2Visitor
 from yinyang.src.parsing.Ast import (
@@ -135,7 +137,7 @@ class AstVisitor(SMTLIBv2Visitor):
         if ctx.cmd_define():
             return Define(
                 self.visitSymbol(ctx.symbol()[0]),
-                self.visitTerm(ctx.term()[0], {})
+                self.visitTerm(ctx.term()[0], {})  # TODO: no local vars?
             )
 
         if ctx.cmd_defineConst():
@@ -362,15 +364,13 @@ class AstVisitor(SMTLIBv2Visitor):
                 "ParOpen GRW_Match term ParOpen match_case+ ParClose ParClose"
             )
 
-        # TODO: Scripts like scripts/QF_BV/crafted/bitvec7.smt2 don't enter this if block
-        # TODO: now they do
-        # TODO: use regex?
-        # TODO: don't confuse value and witdh
-        if len(ctx.ParOpen()) == 1 and ctx.GRW_Underscore() and ctx.numeral():
-            value = ctx.symbol().getText().strip("bv")
-            bitwidth = ctx.numeral().getText()
-            value = ctx.numeral().getText()
-            return Const(name="(_ bv" + bitwidth + " " + value + ")", ttype=BITVECTOR_TYPE(int(bitwidth)))
+        if len(ctx.ParOpen()) == 1 and ctx.GRW_Underscore() and ctx.symbol() and ctx.numeral() and len(ctx.ParClose()) == 1:
+            pattern = re.compile(r"bv([0-9]*)")
+            match = pattern.fullmatch(ctx.symbol().getText())
+            assert match, f"Not a bv constant: '{ctx.symbol().getText()}'"
+            value = match.group(1)
+            width = int(ctx.numeral().getText())
+            return Const(name=f"(_ bv{value} {width})", ttype=BITVECTOR_TYPE(width))
 
         if (
             len(ctx.ParOpen()) == 2
@@ -461,7 +461,11 @@ class AstVisitor(SMTLIBv2Visitor):
         return ctx.getText()
 
     def visitQuotedSymbol(self, ctx: SMTLIBv2Parser.QuotedSymbolContext):
-        return ctx.getText()
+        # Remove quotes
+        pattern = re.compile(r"\|(.*)\|")
+        match = pattern.match(ctx.getText())
+        assert match, f"Not a quoted symbol: '{ctx.getText()}'"
+        return match.group(1)
 
     def visitSymbol(self, ctx: SMTLIBv2Parser.SymbolContext):
         """
