@@ -88,12 +88,12 @@ def sort2type(sort):
     """
     # Base case: None
     if sort is None:
-        return UNKNOWN
+        raise ValueError(f"UNKNOWN sort2type: None")
 
     # Base case: empty
     sort = sort.strip()
     if len(sort) == 0:
-        return UNKNOWN  # TODO: Raise UnknownType instead?!
+        raise ValueError(f"UNKNOWN sort2type: '{sort}'")
     
     # 1. Identify last subexpression
     last_subexpr = None
@@ -196,10 +196,7 @@ def sort2type(sort):
     if fp_t is not None:
         return fp_t
 
-    # TODO: raise an Exception here instead of returning UNKNOWN?
-    # print(f"About to return UNKNOWN for '{sort}'")
-    raise Exception(f"UNKNOWN sort2type: {sort}")
-    # return UNKNOWN
+    raise ValueError(f"UNKNOWN sort2type: '{sort}'")
 
 
 class ARRAY_TYPE:
