@@ -573,7 +573,7 @@ class Term:
         parent=None,
     ):
         self.name = name
-        self.type = ttype
+        self.ttype = ttype
         self.is_const = is_const
         self.is_var = is_var
         self.label = label
@@ -637,7 +637,7 @@ class Term:
             return False
         if self.name != other.name:
             return False
-        if self.type != other.type:
+        if self.ttype != other.type:
             return False
         if self.is_const != other.is_const:
             return False
@@ -651,7 +651,7 @@ class Term:
             return False
         if self.quantified_vars != other.quantified_vars:
             return False
-        if self.type != other.type:
+        if self.ttype != other.type:
             return False
         if self.is_var != other.is_var:
             return False
@@ -723,4 +723,4 @@ class Term:
             return self.name
 
         if self.is_var:
-            return self.name + ":" + str(self.type)
+            return self.name + ":" + str(self.ttype)
