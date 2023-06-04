@@ -125,7 +125,7 @@ def get_constant_value(declare_const):
         r = random.randint(-1000, 1000)
         if r < 0:
             return Expr(op="-",
-                        subterms=[Const(name=str(-r), type=const_type)])
+                        subterms=[Const(name=str(-r), ttype=const_type)])
         else:
             return Const(name=str(r), ttype=const_type)
 
@@ -133,7 +133,7 @@ def get_constant_value(declare_const):
         r = round(random.uniform(-1000, 1000), 5)
         if r < 0:
             return Expr(op="-",
-                        subterms=[Const(name=str(-r), type=const_type)])
+                        subterms=[Const(name=str(-r), ttype=const_type)])
         else:
             return Const(str(r), ttype=const_type)
 
