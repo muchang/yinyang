@@ -182,7 +182,7 @@ class AstVisitor(SMTLIBv2Visitor):
                 sorted_vars,
                 self.visitSort(ctx.function_def().sort()),
                 self.visitTerm(ctx.function_def().term()),
-                {},
+                {},  # TODO: this sould not be empty
             )
 
         if ctx.cmd_defineFunsRec():
@@ -191,7 +191,7 @@ class AstVisitor(SMTLIBv2Visitor):
                 decls.append(self.visitFunction_dec(decl))
             terms = []
             for term in ctx.term():
-                terms.append(self.visitTerm(term, {}))
+                terms.append(self.visitTerm(term, {}))   # TODO: this sould not be empty
             return DefineFunsRec(decls, terms)
 
         if ctx.cmd_checkSat():
