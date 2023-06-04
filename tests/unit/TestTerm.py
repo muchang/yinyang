@@ -47,7 +47,7 @@ class TermTestCase(unittest.TestCase):
         def var2const():
             script, _ = parse_str(formula1)
             script.commands[2].term.substitute(
-                Var(name="v", type="Bool"), Const(name="true", type="Bool")
+                Var(name="v", ttype="Bool"), Const(name="true", ttype="Bool")
             )
             self.assertEqual(
                 script.commands[2].term.__str__(), "(= true (not (= y (- 1))))"
