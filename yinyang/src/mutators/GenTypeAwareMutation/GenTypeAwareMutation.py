@@ -91,7 +91,8 @@ class GenTypeAwareMutation(Mutator):
         An operator op is a candidate (op arg1 ... argk ret)
         (1) if its return type matches the type of t or has polymorphic return
             type (i.e. ret == ALL) and
-        (2) if the seed formula has terms t1...tn such that tk.ttype = argk.ttype
+        (2) if the seed formula has terms t1...tn
+            such that tk.ttype = argk.ttype
 
         :returns: a list of candidate operators
         """

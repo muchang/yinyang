@@ -475,7 +475,9 @@ class SMTLIBCommand:
 
 
 def Var(name, ttype, is_indexed_id=False):
-    return Term(name=name, ttype=ttype, is_var=True, is_indexed_id=is_indexed_id)
+    return Term(
+        name=name, ttype=ttype, is_var=True, is_indexed_id=is_indexed_id
+    )
 
 
 def Const(name, is_indexed_id=False, ttype="Unknown"):

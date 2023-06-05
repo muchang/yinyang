@@ -150,7 +150,8 @@ class AstVisitor(SMTLIBv2Visitor):
         # (Fixed) issues in this function:
         # * local_vars are empty
         # * sorted_vars are not used for TC purposes
-        # * should sorted_vars (in a different datastructure) be used as local_vars?
+        # * should sorted_vars (in a different datastructure)
+        #   be used as local_vars (see below)?
         if ctx.cmd_defineFun():
             sorted_vars = []
             local_vars = {}
@@ -170,7 +171,7 @@ class AstVisitor(SMTLIBv2Visitor):
                 identifier,
                 sorted_vars,
                 self.visitSort(ctx.function_def().sort()),
-                self.visitTerm(ctx.function_def().term(), local_vars), # HERE: sorted vars (converted)??
+                self.visitTerm(ctx.function_def().term(), local_vars),  # HERE!
             )
 
         if ctx.cmd_defineFunRec():
@@ -191,7 +192,7 @@ class AstVisitor(SMTLIBv2Visitor):
                 decls.append(self.visitFunction_dec(decl))
             terms = []
             for term in ctx.term():
-                terms.append(self.visitTerm(term, {}))   # TODO: this sould not be empty
+                terms.append(self.visitTerm(term, {}))   # TODO: empty dict?
             return DefineFunsRec(decls, terms)
 
         if ctx.cmd_checkSat():
@@ -340,8 +341,6 @@ class AstVisitor(SMTLIBv2Visitor):
         | ParOpen GRW_Exclamation term attribute+ ParClose
         ;
         """
-
-
         if (
             ctx.ParOpen()
             and ctx.GRW_Exclamation()
@@ -364,13 +363,22 @@ class AstVisitor(SMTLIBv2Visitor):
                 "ParOpen GRW_Match term ParOpen match_case+ ParClose ParClose"
             )
 
-        if len(ctx.ParOpen()) == 1 and ctx.GRW_Underscore() and ctx.symbol() and ctx.numeral() and len(ctx.ParClose()) == 1:
+        if (
+            len(ctx.ParOpen()) == 1 and
+            ctx.GRW_Underscore() and
+            ctx.symbol() and
+            ctx.numeral() and
+            len(ctx.ParClose()) == 1
+        ):
             pattern = re.compile(r"bv([0-9]*)")
             match = pattern.fullmatch(ctx.symbol().getText())
             assert match, f"Not a bv constant: '{ctx.symbol().getText()}'"
             value = match.group(1)
             width = int(ctx.numeral().getText())
-            return Const(name=f"(_ bv{value} {width})", ttype=BITVECTOR_TYPE(width))
+            return Const(
+                name=f"(_ bv{value} {width})",
+                ttype=BITVECTOR_TYPE(width)
+            )
 
         if (
             len(ctx.ParOpen()) == 2
