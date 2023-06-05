@@ -36,7 +36,7 @@ def process_line(line: str, reject: str) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 3 or sys.argv[1] != "-v":
         print("Usage: filter_benchmarks.py -v <benchmark>*")
         exit(1)
     reject = sys.argv[2:]
