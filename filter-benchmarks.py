@@ -13,7 +13,7 @@ def keep(line: str) -> None:
 
 def process_line(line: str, reject: str) -> None:
     pattern = re.compile(r"scripts/(.*)\.smt2")
-    match = pattern.match(line)
+    match = pattern.search(line)
     if match is None:
         # Something else
         keep(line)
