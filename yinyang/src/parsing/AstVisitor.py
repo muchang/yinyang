@@ -471,7 +471,7 @@ class AstVisitor(SMTLIBv2Visitor):
     def visitQuotedSymbol(self, ctx: SMTLIBv2Parser.QuotedSymbolContext):
         # Remove quotes
         pattern = re.compile(r"\|(.*)\|")
-        match = pattern.match(ctx.getText())
+        match = pattern.fullmatch(ctx.getText())
         assert match, f"Not a quoted symbol: '{ctx.getText()}'"
         return match.group(1)
 
