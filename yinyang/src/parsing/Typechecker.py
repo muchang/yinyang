@@ -176,7 +176,7 @@ def typecheck_eq(expr, ctxt=[]):
     assert len(expr.subterms) >= 2,\
         "Equality-check: expr should have at least two subterms"
     typ = typecheck_expr(expr.subterms[0], ctxt)
-    for term in expr.subterms[1:]:
+    for term in expr.subterms[1:]:  # TODO: [1:], really?
         t = typecheck_expr(term, ctxt)
         if t != typ:
             if not (is_subtype(t, typ) or is_subtype(typ, t)):
@@ -192,14 +192,30 @@ def typecheck_ite(expr, ctxt):
     # Bool
     if ttypes[0] != BOOLEAN_TYPE:
         raise TypeCheckError(expr, expr.subterms[0], BOOLEAN_TYPE, ttypes[0])
-    # A
-    if ttypes[1] is None:
-        raise TypeCheckError(expr, expr.subterms[1], "A", "None")
-    # A
-    if ttypes[2] != ttypes[1]:
+    # Check for None-values
+    for i in [1, 2] :
+        if ttypes[i] is None:
+            raise TypeCheckError(expr, expr.subterms[i], "A", "None")
+    # Try to determine A (the more general type)
+    ok = False
+    A = None
+    if ttypes[1] == ttypes[2]:
+        # Same type
+        ok = True
+        A = ttypes[1]
+    elif is_subtype(ttypes[1], ttypes[2]):
+        # a1 < a2
+        ok = True
+        A = ttypes[2]
+    elif is_subtype(ttypes[2], ttypes[1]):
+        # a2 < a1
+        ok = True
+        A = ttypes[1]
+    # Failure
+    if not ok:
         raise TypeCheckError(expr, expr.subterms[2], ttypes[1], ttypes[2])
-    # A
-    return ttypes[1]
+    # Success
+    return A
 
 
 def typecheck_nary_bool(expr, ctxt=[]):
