@@ -35,8 +35,8 @@ class Script:
         for cmd in self.commands:
             if isinstance(cmd, Assert):
                 globs_ = copy.deepcopy(self.global_vars)
-                self._get_free_var_occs(cmd.term, self.global_vars)
                 self.global_vars = globs_
+                self._get_free_var_occs(cmd.term, self.global_vars)
                 self._get_op_occs(cmd.term)
                 self.assert_cmd.append(cmd)
 
