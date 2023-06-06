@@ -117,13 +117,10 @@ class AstVisitor(SMTLIBv2Visitor):
         if ctx.cmd_eval():
             return Eval(self.visitTerm(ctx.term()[0], {}))
         if ctx.cmd_declareConst():
-            var = self.visitSymbol(ctx.symbol()[0])
-            self.global_vars[var] = sort2type(self.visitSort(ctx.sort()[0]))
-            decl = DeclareConst(
-                self.visitSymbol(ctx.symbol()[0]),
-                sort2type(self.visitSort(ctx.sort()[0]))
-            )
-            return decl
+            var = str(self.visitSymbol(ctx.symbol()[0]))
+            ttype = sort2type(self.visitSort(ctx.sort()[0]))
+            self.global_vars[var] = ttype
+            return DeclareConst(var, ttype)
         if ctx.cmd_declareFun():
             input_sorts = []
             for sort in ctx.sort()[:-1]:
@@ -348,9 +345,9 @@ class AstVisitor(SMTLIBv2Visitor):
             and len(ctx.attribute()) >= 1
             and ctx.ParClose()
         ):
-            term, label = self.visitTerm(ctx.term()[0]), self.visitAttribute(
-                ctx.attribute()[0]
-            )
+            # TODO: local_vars?
+            term = self.visitTerm(ctx.term()[0], local_vars)
+            label = self.visitAttribute(ctx.attribute()[0])
             return LabeledTerm(label, [term])
 
         if (
