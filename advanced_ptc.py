@@ -8,7 +8,7 @@ from yinyang.src.parsing.Typechecker import TypeCheckError, typecheck
 
 
 # Settings
-TIMEOUT_LIMIT = 30
+TIMEOUT_DEFAULT = 30
 
 # Flags
 SILENT = "--silent"
@@ -49,10 +49,22 @@ def log(fn: str, verbosity_level: str, operation: str, outcome: str, e: Exceptio
         traceback.print_exc(file=sys.stdout)
 
 
+def usage_notice() -> None:
+    print(f"Usage: advanced_ptc.py <smt2-file> {flags_str()} timeout-limit?")
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3 or sys.argv[2] not in FLAGS:
-        print(f"Usage: advanced_ptc.py <smt2-file> {flags_str()}")
+
+    # Usage and timeout limit
+    if len(sys.argv) not in [3, 4] or sys.argv[2] not in FLAGS:
+        usage_notice()
         exit(1)
+    timeout_limit = TIMEOUT_DEFAULT
+    if len(sys.argv) == 4:
+        if not sys.argv[3].isnumeric():
+            usage_notice()
+            exit(1)
+        timeout_limit = int(sys.argv[3])
 
     fn = sys.argv[1]
     verbosity_level = sys.argv[2]
@@ -66,7 +78,7 @@ if __name__ == "__main__":
         * Parsing error (i.e. parser claims source is not valid)
     """
     try:
-        attempt = parse_filestream(fn, TIMEOUT_LIMIT)
+        attempt = parse_filestream(fn, timeout_limit)
         if attempt is None:
             # Unsupported file
             log(fn, verbosity_level, PARSING, UNSUPPORTED_FILE)
@@ -93,7 +105,7 @@ if __name__ == "__main__":
     Note: typechecking errors/crashes may be due to faulty parsing!
     """
     try:
-        ctxt = typecheck(script, globs, TIMEOUT_LIMIT)
+        ctxt = typecheck(script, globs, timeout_limit)
         if ctxt is None:
             # Timeout
             log(fn, verbosity_level, TYPECHECKING, TIMEOUT)
