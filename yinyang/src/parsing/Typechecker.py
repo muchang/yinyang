@@ -186,7 +186,6 @@ def typecheck_eq(expr, ctxt=[]):
 
 def typecheck_ite(expr, ctxt):
     """(ite Bool A A A))"""
-    print(expr)
     # Typecheck all subterms individually
     assert len(expr.subterms) == 3, "ite takes 3 subterms"
     ttypes = [typecheck_expr(x, ctxt) for x in expr.subterms]
