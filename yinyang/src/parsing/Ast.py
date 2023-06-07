@@ -34,9 +34,10 @@ class Script:
 
         for cmd in self.commands:
             if isinstance(cmd, Assert):
-                globs_ = copy.deepcopy(self.global_vars)
-                self._get_free_var_occs(cmd.term, self.global_vars)
-                self.global_vars = globs_
+                # Performance issue: deepcopy in a for-loop
+                # globs_ = copy.deepcopy(self.global_vars)
+                self._get_free_var_occs(cmd.term, {})  # WARNING: new syntax
+                # self.global_vars = globs_
                 self._get_op_occs(cmd.term)
                 self.assert_cmd.append(cmd)
 
@@ -54,7 +55,57 @@ class Script:
         for sub in e.subterms:
             self._get_op_occs(sub)
 
-    def _get_free_var_occs(self, e, global_vars):
+    # WATCH OUT: second parameter is for bound
+    # variables, not global variables!!
+    def _get_free_var_occs(self, expr, bound: dict) -> None:
+
+        # TODO: empty parameters, defaults, whaaat??
+
+        """
+        Bottom-up approach.
+        Keep track of bound variables, starting from an empty 'set'
+        """
+
+        for x in bound:
+            assert isinstance(x, str), "'bound' must only hold variable names!"
+
+        """
+        print(f"--- Bound variables for expression '{str(expr)}' ---")
+        for k in bound:
+            print(f" - {k} ({type(k)})")
+        """
+        
+        if expr.is_const:
+            return
+        if expr.is_var and str(expr) not in bound:
+            # print(f"Bound variables: {bound}")
+            # print(f"Variable '{str(expr)}', free")
+            self.free_var_occs.append(expr)  # TODO: add what exactly?
+        if expr.label:
+            return
+        # TODO: indices
+        if expr.quantifier:
+            # print(f"QUANTIFIER: {str(expr)}")
+            # print(f"expr.quantified_vars {expr.quantified_vars}")
+            for v in expr.quantified_vars[0]:  # TODO: what's up with the [0] ?
+                # print(f"QUANTIFIED var: {str(v)}")
+                bound[str(v)] = True  # Ideally, use a set
+                # bound.add(v)
+        if expr.var_binders:
+            for v in expr.var_binders:
+                bound[str(v)] = True  # Ideally, use a set
+                # bound.add(v)
+            for t in expr.let_terms:
+                # TODO: what exactly is this?
+                self._get_free_var_occs(t, bound)
+        # TODO: operators?
+        if expr.subterms:
+            for t in expr.subterms:
+                self._get_free_var_occs(t, bound)
+        # TODO: is_indexed_id?
+
+    """
+    def _get_free_var_occs_legacy(self, e, global_vars):
         if isinstance(e, str):
             return
         if e.is_const:
@@ -82,6 +133,7 @@ class Script:
 
         for sub in e.subterms:
             self._get_free_var_occs(sub, global_vars)
+    """
 
     def _decl_commands(self):
         vars, types = [], {}
