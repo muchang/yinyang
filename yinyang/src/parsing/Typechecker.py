@@ -193,7 +193,7 @@ def typecheck_ite(expr, ctxt):
     if ttypes[0] != BOOLEAN_TYPE:
         raise TypeCheckError(expr, expr.subterms[0], BOOLEAN_TYPE, ttypes[0])
     # Check for None-values
-    for i in [1, 2] :
+    for i in [1, 2]:
         if ttypes[i] is None:
             raise TypeCheckError(expr, expr.subterms[i], "A", "None")
     # Try to determine A (the more general type)
