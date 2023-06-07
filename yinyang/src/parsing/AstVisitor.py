@@ -234,8 +234,9 @@ class AstVisitor(SMTLIBv2Visitor):
             sorted_vars.append(self.visitSorted_var(var))
 
         return FunDecl(
-            self.visitSymbol(
-                ctx.symbol()), sorted_vars, self.visitSort(ctx.sort())
+            self.visitSymbol(ctx.symbol()),
+            sorted_vars,
+            self.visitSort(ctx.sort())
         )
 
     def visitSorted_var(self, ctx: SMTLIBv2Parser.Sorted_varContext):
@@ -264,7 +265,6 @@ class AstVisitor(SMTLIBv2Visitor):
         else:
             cmd = self.handleCommand(ctx)
             if not cmd:
-
                 return SMTLIBCommand(self.getString(ctx))
             else:
                 return cmd
@@ -408,8 +408,9 @@ class AstVisitor(SMTLIBv2Visitor):
             terms = []
             var_list = []
             for b in ctx.var_binding():
-                local_vars[self.visitSymbol(b.symbol())] = "Unknown"
-                var_list.append(self.visitSymbol(b.symbol()))
+                symbol = self.visitSymbol(b.symbol())
+                local_vars[symbol] = "Unknown"
+                var_list.append(symbol)
                 terms.append(self.visitTerm(b.term(), local_vars))
             subterms = []
             for sub in ctx.term():
