@@ -71,14 +71,12 @@ class Script:
         if expr.is_var and str(expr) not in bound:
             # print(f"Bound variables: {bound}")
             # print(f"Variable '{str(expr)}', free")
-            self.free_var_occs.append(expr)  # TODO: add what exactly?
+            self.free_var_occs.append(expr)
         if expr.label:
             return
         # TODO: indices
         # TODO: is_indexed_id?
         if expr.quantifier:
-            # print(f"QUANTIFIER: {str(expr)}")
-            # print(f"expr.quantified_vars {expr.quantified_vars}")
             for v in expr.quantified_vars[0]:  # 0: [names], 1: [types]
                 # print(f"QUANTIFIED var: {str(v)}")
                 bound[str(v)] = True  # Ideally, use a set
