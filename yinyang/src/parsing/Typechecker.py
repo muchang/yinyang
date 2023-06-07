@@ -61,17 +61,17 @@ class Context:
         self.globals = globals
         self.locals = locals
 
-    def add_to_globals(self, var, type):
-        if isinstance(type, str):
-            self.globals[var] = sort2type(type)
+    def add_to_globals(self, var, ttype):
+        if isinstance(ttype, str):
+            self.globals[var] = sort2type(ttype)
         else:
-            self.globals[var] = type
+            self.globals[var] = ttype
 
-    def add_to_locals(self, var, type):
-        if isinstance(type, str):
-            self.locals[var] = sort2type(type)
+    def add_to_locals(self, var, ttype):
+        if isinstance(ttype, str):
+            self.locals[var] = sort2type(ttype)
         else:
-            self.locals[var] = type
+            self.locals[var] = ttype
 
 
 class TypeCheckError(Exception):
