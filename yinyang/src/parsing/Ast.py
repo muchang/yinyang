@@ -75,10 +75,11 @@ class Script:
         if expr.label:
             return
         # TODO: indices
+        # TODO: is_indexed_id?
         if expr.quantifier:
             # print(f"QUANTIFIER: {str(expr)}")
             # print(f"expr.quantified_vars {expr.quantified_vars}")
-            for v in expr.quantified_vars[0]:  # TODO: what's up with the [0] ?
+            for v in expr.quantified_vars[0]:  # 0: [names], 1: [types]
                 # print(f"QUANTIFIED var: {str(v)}")
                 bound[str(v)] = True  # Ideally, use a set
                 # bound.add(v)
@@ -89,42 +90,9 @@ class Script:
             for t in expr.let_terms:
                 # TODO: what exactly is this?
                 self._get_free_var_occs(t, bound)
-        # TODO: operators?
         if expr.subterms:
             for t in expr.subterms:
                 self._get_free_var_occs(t, bound)
-        # TODO: is_indexed_id?
-
-    """
-    def _get_free_var_occs_legacy(self, e, global_vars):
-        if isinstance(e, str):
-            return
-        if e.is_const:
-            return
-        if e.label:
-            return
-        if e.quantifier:
-            for var in list(global_vars):
-                for quantified_var in e.quantified_vars[0]:
-                    if var == quantified_var:
-                        global_vars.pop(var)
-
-        if e.var_binders:
-            for var in list(global_vars):
-                for let_var in e.var_binders:
-                    if var == let_var:
-                        global_vars.pop(var)
-            for let_term in e.let_terms:
-                self._get_free_var_occs(let_term, global_vars)
-
-        if e.is_var:
-            if e.name in global_vars:
-                self.free_var_occs.append(e)
-            return
-
-        for sub in e.subterms:
-            self._get_free_var_occs(sub, global_vars)
-    """
 
     def _decl_commands(self):
         vars, types = [], {}
