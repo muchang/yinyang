@@ -34,10 +34,7 @@ class Script:
 
         for cmd in self.commands:
             if isinstance(cmd, Assert):
-                # Performance issue: deepcopy in a for-loop
-                # globs_ = copy.deepcopy(self.global_vars)
                 self._get_free_var_occs(cmd.term, {})  # WARNING: new syntax
-                # self.global_vars = globs_
                 self._get_op_occs(cmd.term)
                 self.assert_cmd.append(cmd)
 
@@ -67,14 +64,8 @@ class Script:
         """
 
         for x in bound:
-            assert isinstance(x, str), "'bound' must only hold variable names!"
+            assert isinstance(x, str), "'bound' must hold variables as strings"
 
-        """
-        print(f"--- Bound variables for expression '{str(expr)}' ---")
-        for k in bound:
-            print(f" - {k} ({type(k)})")
-        """
-        
         if expr.is_const:
             return
         if expr.is_var and str(expr) not in bound:
