@@ -34,7 +34,7 @@ class Script:
 
         for cmd in self.commands:
             if isinstance(cmd, Assert):
-                self._get_free_var_occs(cmd.term, {})  # WARNING: new syntax
+                self._get_free_var_occs(cmd.term, set())  # WARNING: new syntax
                 self._get_op_occs(cmd.term)
                 self.assert_cmd.append(cmd)
 
@@ -52,25 +52,22 @@ class Script:
         for sub in e.subterms:
             self._get_op_occs(sub)
 
-    # WATCH OUT: second parameter is for bound
-    # variables, not global variables!!
-    def _get_free_var_occs(self, expr, bound: dict) -> None:
-
-        # TODO: empty parameters, defaults, whaaat??
-
+    """
+    WARNING: second parameter is for bound variables!!
+    (It used to be for global variables)
+    Also, this creates a bug: ......., S: set = set() """
+    def _get_free_var_occs(self, expr, S: set) -> None:
         """
         Bottom-up approach.
-        Keep track of bound variables, starting from an empty 'set'
+        Keep track of bound variables in a set 'S' (empty to start with)
         """
-
-        for x in bound:
-            assert isinstance(x, str), "'bound' must hold variables as strings"
+        assert isinstance(S, set)
+        for x in S:
+            assert isinstance(x, str), "Bound vars set must contain strings"
 
         if expr.is_const:
             return
-        if expr.is_var and str(expr) not in bound:
-            # print(f"Bound variables: {bound}")
-            # print(f"Variable '{str(expr)}', free")
+        if expr.is_var and str(expr) not in S:
             self.free_var_occs.append(expr)
         if expr.label:
             return
@@ -78,19 +75,17 @@ class Script:
         # TODO: is_indexed_id?
         if expr.quantifier:
             for v in expr.quantified_vars[0]:  # 0: [names], 1: [types]
-                # print(f"QUANTIFIED var: {str(v)}")
-                bound[str(v)] = True  # Ideally, use a set
-                # bound.add(v)
+                S.add(str(v))
         if expr.var_binders:
             for v in expr.var_binders:
-                bound[str(v)] = True  # Ideally, use a set
-                # bound.add(v)
+                S.add(str(v))
             for t in expr.let_terms:
                 # TODO: what exactly is this?
-                self._get_free_var_occs(t, bound)
+                self._get_free_var_occs(t, copy.deepcop(S))
         if expr.subterms:
             for t in expr.subterms:
-                self._get_free_var_occs(t, bound)
+                self._get_free_var_occs(t, copy.deepcopy(S))
+        # Alternative to deepcopy in recursive calls: remove inserted v. from S
 
     def _decl_commands(self):
         vars, types = [], {}
