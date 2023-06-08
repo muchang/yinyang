@@ -34,7 +34,7 @@ class Script:
 
         for cmd in self.commands:
             if isinstance(cmd, Assert):
-                self._get_free_var_occs(cmd.term, set())  # WARNING: new syntax
+                self._get_free_var_occs(cmd.term)  # WARNING: new syntax!
                 self._get_op_occs(cmd.term)
                 self.assert_cmd.append(cmd)
 
@@ -54,9 +54,10 @@ class Script:
 
     """
     WARNING: second parameter is for bound variables!!
-    (It used to be for global variables)
-    Also, this creates a bug: ......., S: set = set() """
-    def _get_free_var_occs(self, expr, S: set) -> None:
+    (It used to be for all global variables)
+    """
+    def _get_free_var_occs(self, expr, S: set = set()) -> None:
+        # TODO: Make sure this fully complies with 'Term' datastructure
         """
         Bottom-up approach.
         Keep track of bound variables in a set 'S' (empty to start with)
@@ -73,19 +74,28 @@ class Script:
             return
         # TODO: indices
         # TODO: is_indexed_id?
+        copied_S = False
         if expr.quantifier:
+            if len(expr.quantified_vars[0]) > 0:
+                # Make a copy of S before modifying it,
+                # as other stackframes are using it too!
+                S = copy.deepcopy(S)
+                copied_S = True
             for v in expr.quantified_vars[0]:  # 0: [names], 1: [types]
                 S.add(str(v))
         if expr.var_binders:
+            if len(expr.var_binders) > 0 and not copied_S:
+                # Make a copy of S before modifying it, but only
+                # if it hasn't been done already (performance)
+                S = copy.deepcopy(S)
             for v in expr.var_binders:
                 S.add(str(v))
             for t in expr.let_terms:
-                # TODO: what exactly is this?
-                self._get_free_var_occs(t, copy.deepcop(S))
+                # TODO: what exactly is this, how does it differ from subterms?
+                self._get_free_var_occs(t, S)
         if expr.subterms:
             for t in expr.subterms:
-                self._get_free_var_occs(t, copy.deepcopy(S))
-        # Alternative to deepcopy in recursive calls: remove inserted v. from S
+                self._get_free_var_occs(t, S)
 
     def _decl_commands(self):
         vars, types = [], {}
