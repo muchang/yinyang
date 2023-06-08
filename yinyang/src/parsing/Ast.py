@@ -547,7 +547,7 @@ class Term:
         parent=None,
     ):
 
-        # Check whether subterms are corectly represented
+        # Check whether subterms are correctly represented
         if subterms is not None:
             for term in subterms:
                 assert isinstance(term, Term),\

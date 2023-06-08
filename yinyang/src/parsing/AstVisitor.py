@@ -180,7 +180,7 @@ class AstVisitor(SMTLIBv2Visitor):
                 sorted_vars,
                 self.visitSort(ctx.function_def().sort()),
                 self.visitTerm(ctx.function_def().term()),
-                {},  # TODO: this sould not be empty
+                {},  # TODO: this should not be empty
             )
 
         if ctx.cmd_defineFunsRec():
