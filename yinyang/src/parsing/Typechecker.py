@@ -161,12 +161,13 @@ def is_subtype(t, tprime):
     if t == INTEGER_TYPE and tprime == REAL_TYPE:
         return True
     if isinstance(t, BITVECTOR_TYPE) and isinstance(tprime, BITVECTOR_TYPE):
-        return t.bitwidth <= tprime.bitwidth
+        return t.bitwidth < tprime.bitwidth
     return False
 
 
 def typecheck_eq(expr, ctxt=[]):
-    """(par (A) (= A A Bool :chainable))
+    """
+    (par (A) (= A A Bool :chainable))
     (par (A) (distinct A A Bool :pairwise))
     """
     assert isinstance(expr, Term),\
@@ -176,7 +177,7 @@ def typecheck_eq(expr, ctxt=[]):
     assert len(expr.subterms) >= 2,\
         "Equality-check: expr should have at least two subterms"
     typ = typecheck_expr(expr.subterms[0], ctxt)
-    for term in expr.subterms[1:]:  # TODO: [1:], really?
+    for term in expr.subterms[1:]:
         t = typecheck_expr(term, ctxt)
         if t != typ:
             if not (is_subtype(t, typ) or is_subtype(typ, t)):
@@ -184,8 +185,10 @@ def typecheck_eq(expr, ctxt=[]):
     return BOOLEAN_TYPE
 
 
-def typecheck_ite(expr, ctxt):
-    """(ite Bool A A A))"""
+def typecheck_ite(expr: Term, ctxt):
+    """
+    (par (A) (ite Bool A A A))
+    """
     # Typecheck all subterms individually
     assert len(expr.subterms) == 3, "ite takes 3 subterms"
     ttypes = [typecheck_expr(x, ctxt) for x in expr.subterms]
