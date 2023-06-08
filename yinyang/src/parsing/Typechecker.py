@@ -161,7 +161,7 @@ def is_subtype(t, tprime):
     if t == INTEGER_TYPE and tprime == REAL_TYPE:
         return True
     if isinstance(t, BITVECTOR_TYPE) and isinstance(tprime, BITVECTOR_TYPE):
-        return True
+        return t.bitwidth <= tprime.bitwidth
     return False
 
 
