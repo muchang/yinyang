@@ -41,7 +41,7 @@ from yinyang.src.parsing.Types import (
     STR_SUBSTR, STR_INDEXOF, STR_REPLACE, STR_REPLACE_ALL, STR_REPLACE_RE,
     STR_REPLACE_RE_ALL, STR_TO_CODE, STR_TO_INT, STR_TO_RE, STR_FROM_CODE,
     STR_FROM_INT, STR_IS_DIGIT, RE_RANGE, SELECT, STORE, BV_CONCAT, BVNOT,
-    RE_LOOP,
+    RE_POWER, RE_LOOP,
     BVNEG, BVAND, BVNAND, BVOR, BVNOR, BVXOR, BVXNOR, BVADD, BVSUB, BVMUL,
     BVUDIV, BVUREM, BVSREM, BVSHL, BV_REPEAT, BV_ROTATE_LEFT, BV_ROTATE_RIGHT,
     BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVSMOD,
@@ -465,12 +465,12 @@ def typecheck_re_range(expr, ctxt):
     return REGEXP_TYPE
 
 
-def typecheck_re_loop(expr, ctxt):
+def typecheck_re_power_loop(expr, ctxt):
     """
+    ((_ re.^ n) RegLan RegLan)
     ((_ re.loop i n) RegLan RegLan)
     """
     t1 = typecheck_expr(expr.subterms[0], ctxt)
-
     if t1 != REGEXP_TYPE:
         raise TypeCheckError(expr, expr, REGEXP_TYPE, t1)
     return REGEXP_TYPE
@@ -1122,8 +1122,8 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
                 return annotate(typecheck_bv_extend_ops, expr, ctxt)
 
             # Special string/reglan ops
-            if RE_LOOP in expr.op:
-                return annotate(typecheck_re_loop, expr, ctxt)
+            if RE_POWER in expr.op or RE_LOOP in expr.op:
+                return annotate(typecheck_re_power_loop, expr, ctxt)
 
         # Handle operators which did not match any of the above
         # For instance, functions

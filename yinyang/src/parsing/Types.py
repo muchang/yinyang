@@ -353,9 +353,11 @@ STRING_OPS = [
 """
 Special string operations
 
+    ((_ re.^ n) RegLan RegLan)
     ((_ re.loop i n) RegLan RegLan)
 
 """
+RE_POWER = "(_ re.^"
 RE_LOOP = "(_ re.loop"
 
 # Array ops
