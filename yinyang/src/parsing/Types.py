@@ -95,10 +95,6 @@ def sort2type(sort):
     if len(sort) == 0:
         raise ValueError(f"UNKNOWN sort2type: '{sort}'")
 
-    # Base case: A
-    if sort == "A":
-        return sort
-    
     # 1. Identify last subexpression
     last_subexpr = None
     par_level = 0
