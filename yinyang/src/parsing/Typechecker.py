@@ -104,7 +104,7 @@ class UnknownType(Exception):
         super().__init__(self.message)
 
 
-def typecheck_not(expr, ctxt=[]):
+def typecheck_not(expr, ctxt):
     """(not Bool Bool)"""
     typ = typecheck_expr(expr.subterms[0], ctxt)
     if typ != BOOLEAN_TYPE:
@@ -112,7 +112,7 @@ def typecheck_not(expr, ctxt=[]):
     return BOOLEAN_TYPE
 
 
-def typecheck_unary_minus(expr, ctxt=[]):
+def typecheck_unary_minus(expr, ctxt):
     """(- Int Int)
     (- Real Real)
     """
@@ -124,7 +124,7 @@ def typecheck_unary_minus(expr, ctxt=[]):
     return typecheck_expr(expr.subterms[0], ctxt)
 
 
-def typecheck_nary_numeral_ret(expr, ctxt=[]):
+def typecheck_nary_numeral_ret(expr, ctxt):
     """(- Int Int Int :left-assoc)
     (+ Int Int Int :left-assoc)
     (* Int Int Int :left-assoc)
@@ -145,7 +145,7 @@ def typecheck_nary_numeral_ret(expr, ctxt=[]):
     return typ
 
 
-def typecheck_nary_int_ret(expr, ctxt=[]):
+def typecheck_nary_int_ret(expr, ctxt):
     """(div Int Int Int :left-assoc)
     (mod Int Int Int)
     (abs Int Int)
@@ -165,7 +165,7 @@ def is_subtype(t, tprime):
     return False
 
 
-def typecheck_eq(expr, ctxt=[]):
+def typecheck_eq(expr, ctxt):
     """
     (par (A) (= A A Bool :chainable))
     (par (A) (distinct A A Bool :pairwise))
@@ -221,7 +221,7 @@ def typecheck_ite(expr: Term, ctxt):
     return A
 
 
-def typecheck_nary_bool(expr, ctxt=[]):
+def typecheck_nary_bool(expr, ctxt):
     """
     (and Bool Bool Bool :left-assoc)
     (or Bool Bool Bool :left-assoc)
