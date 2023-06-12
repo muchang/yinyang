@@ -84,9 +84,9 @@ if __name__ == "__main__":
             log(fn, verbosity_level, PARSING, UNSUPPORTED_FILE)
             exit(1)
         script, globs = attempt
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as ke:
         # Timeout
-        log(fn, verbosity_level, PARSING, TIMEOUT)
+        log(fn, verbosity_level, PARSING, TIMEOUT, ke)
         exit(1)
     except Exception as e:
         # Crash or parsing error
