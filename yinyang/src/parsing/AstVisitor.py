@@ -144,11 +144,6 @@ class AstVisitor(SMTLIBv2Visitor):
                 self.visitTerm(ctx.term()[0], {}),
             )
 
-        # (Fixed) issues in this function:
-        # * local_vars are empty
-        # * sorted_vars are not used for TC purposes
-        # * should sorted_vars (in a different datastructure)
-        #   be used as local_vars (see below)?
         if ctx.cmd_defineFun():
             sorted_vars = []
             local_vars = {}
@@ -156,7 +151,6 @@ class AstVisitor(SMTLIBv2Visitor):
                 symbol = self.visitSymbol(var.symbol())
                 sort = self.visitSort(var.sort())
                 sorted_vars.append(f"({symbol} {sort})")
-                # assert sorted_vars[-1] == self.visitSorted_var(var)
                 local_vars[symbol] = sort2type(sort)
             identifier = self.visitSymbol(ctx.function_def().symbol())
             sorted_vars = " ".join(sorted_vars)
@@ -168,7 +162,7 @@ class AstVisitor(SMTLIBv2Visitor):
                 identifier,
                 sorted_vars,
                 self.visitSort(ctx.function_def().sort()),
-                self.visitTerm(ctx.function_def().term(), local_vars),  # HERE!
+                self.visitTerm(ctx.function_def().term(), local_vars),
             )
 
         if ctx.cmd_defineFunRec():
