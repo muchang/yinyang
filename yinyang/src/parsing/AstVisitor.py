@@ -339,7 +339,6 @@ class AstVisitor(SMTLIBv2Visitor):
             and len(ctx.attribute()) >= 1
             and ctx.ParClose()
         ):
-            # TODO: local_vars?
             term = self.visitTerm(ctx.term()[0], local_vars)
             label = self.visitAttribute(ctx.attribute()[0])
             return LabeledTerm(label, [term])
