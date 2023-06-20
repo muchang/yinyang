@@ -229,8 +229,9 @@ class AstVisitor(SMTLIBv2Visitor):
     def visitFunction_dec(self, ctx: SMTLIBv2Parser.Function_decContext):
         sorted_vars = []
         for var in ctx.sorted_var():
-            sorted_vars.append(f"({\
-                self.visitSymbol(var.symbol())} {self.visitSort(var.sort())})")
+            sv = f"({self.visitSymbol(var.symbol())} "
+            sv += f"{self.visitSort(var.sort())})"
+            sorted_vars.append(sv)
 
         return FunDecl(
             self.visitSymbol(ctx.symbol()),
