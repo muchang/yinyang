@@ -167,14 +167,18 @@ class AstVisitor(SMTLIBv2Visitor):
 
         if ctx.cmd_defineFunRec():
             sorted_vars = []
+            local_vars = {}
             for var in ctx.function_def().sorted_var():
-                sorted_vars.append(self.visitSorted_var(var))
+                symbol = self.visitSymbol(var.symbol())
+                sort = self.visitSort(var.sort())
+                sorted_vars.append(f"({symbol} {sort})")
+                local_vars[symbol] = sort2type(sort)
             return DefineFunRec(
                 self.visitSymbol(ctx.function_def().symbol()),
                 sorted_vars,
                 self.visitSort(ctx.function_def().sort()),
                 self.visitTerm(ctx.function_def().term()),
-                {},  # TODO: this should not be empty
+                local_vars
             )
 
         if ctx.cmd_defineFunsRec():
@@ -225,21 +229,13 @@ class AstVisitor(SMTLIBv2Visitor):
     def visitFunction_dec(self, ctx: SMTLIBv2Parser.Function_decContext):
         sorted_vars = []
         for var in ctx.sorted_var():
-            sorted_vars.append(self.visitSorted_var(var))
+            sorted_vars.append(f"({\
+                self.visitSymbol(var.symbol())} {self.visitSort(var.sort())})")
 
         return FunDecl(
             self.visitSymbol(ctx.symbol()),
             sorted_vars,
             self.visitSort(ctx.sort())
-        )
-
-    def visitSorted_var(self, ctx: SMTLIBv2Parser.Sorted_varContext):
-        return (
-            "("
-            + self.visitSymbol(ctx.symbol())
-            + " "
-            + self.visitSort(ctx.sort())
-            + ")"
         )
 
     def getString(self, ctx):
