@@ -175,9 +175,6 @@ CMD_DeclareFun
 CMD_DeclareSort
     : 'declare-sort'
     ;
-CMD_Define
-    : 'define'
-    ;
 CMD_DefineFun
     : 'define-fun'
     ;
@@ -951,10 +948,6 @@ cmd_declareSort
     : CMD_DeclareSort
     ;
 
-cmd_define
-    : CMD_Define
-    ;
-
 cmd_defineFun
     : CMD_DefineFun
     ;
@@ -1137,7 +1130,6 @@ command
     datatype_dec+ ParClose ParClose
     | ParOpen cmd_declareFun symbol ParOpen sort* ParClose sort ParClose
     | ParOpen cmd_declareSort symbol numeral? ParClose
-    | ParOpen cmd_define symbol term ParClose
     | ParOpen cmd_defineFun function_def ParClose
     | ParOpen cmd_defineConst symbol sort term ParClose
     | ParOpen cmd_defineFunRec function_def ParClose

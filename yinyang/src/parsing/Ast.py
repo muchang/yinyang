@@ -251,15 +251,6 @@ class Comment:
         return "; " + self.txt
 
 
-class Define:
-    def __init__(self, symbol, term):
-        self.term = term
-        self.symbol = symbol
-
-    def __str__(self):
-        return "(define " + self.symbol + " " + self.term.__str__() + ")"
-
-
 class DefineConst:
     def __init__(self, symbol, sort, term):
         self.symbol = symbol

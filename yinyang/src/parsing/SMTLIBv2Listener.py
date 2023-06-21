@@ -539,15 +539,6 @@ class SMTLIBv2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by SMTLIBv2Parser#cmd_define.
-    def enterCmd_define(self, ctx:SMTLIBv2Parser.Cmd_defineContext):
-        pass
-
-    # Exit a parse tree produced by SMTLIBv2Parser#cmd_define.
-    def exitCmd_define(self, ctx:SMTLIBv2Parser.Cmd_defineContext):
-        pass
-
-
     # Enter a parse tree produced by SMTLIBv2Parser#cmd_defineFun.
     def enterCmd_defineFun(self, ctx:SMTLIBv2Parser.Cmd_defineFunContext):
         pass

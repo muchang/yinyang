@@ -37,7 +37,6 @@ from yinyang.src.parsing.Ast import (
     Push,
     DeclareConst,
     DeclareFun,
-    Define,
     DefineFun,
     DefineFunRec,
     DefineFunsRec,
@@ -130,12 +129,6 @@ class AstVisitor(SMTLIBv2Visitor):
             identifier = self.visitSymbol(ctx.symbol()[0])
             self.add_to_globals(identifier, input_sorts, output_sort)
             return DeclareFun(identifier, input_sorts, output_sort)
-
-        if ctx.cmd_define():
-            return Define(
-                self.visitSymbol(ctx.symbol()[0]),
-                self.visitTerm(ctx.term()[0], {})  # TODO: no local vars?
-            )
 
         if ctx.cmd_defineConst():
             return DefineConst(
