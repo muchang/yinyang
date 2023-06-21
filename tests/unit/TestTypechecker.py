@@ -48,7 +48,7 @@ def check_type(expr):
     recursive traversal of expressions to check whether none of them has
     unknown type.
     """
-    if expr.type == UNKNOWN:
+    if expr.ttype == UNKNOWN:
         raise Exception(expr.__str__() + " has unknown type")
 
     if expr.var_binders:

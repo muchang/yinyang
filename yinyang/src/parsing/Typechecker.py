@@ -28,7 +28,7 @@ from yinyang.src.parsing.Types import (
     sort2type,
     # Types
     BOOLEAN_TYPE, REAL_TYPE, INTEGER_TYPE, ROUNDINGMODE_TYPE, STRING_TYPE,
-    REGEXP_TYPE, UNKNOWN, ARRAY_TYPE, BITVECTOR_TYPE, FP_TYPE,
+    REGEXP_TYPE, ARRAY_TYPE, BITVECTOR_TYPE, FP_TYPE,
     # Operator lists
     CORE_OPS, NUMERICAL_OPS, REAL_OPS, INT_OPS, REAL_INTS, STRING_OPS,
     ARRAY_OPS, BV_OPS, FP_OPS,
@@ -41,6 +41,7 @@ from yinyang.src.parsing.Types import (
     STR_SUBSTR, STR_INDEXOF, STR_REPLACE, STR_REPLACE_ALL, STR_REPLACE_RE,
     STR_REPLACE_RE_ALL, STR_TO_CODE, STR_TO_INT, STR_TO_RE, STR_FROM_CODE,
     STR_FROM_INT, STR_IS_DIGIT, RE_RANGE, SELECT, STORE, BV_CONCAT, BVNOT,
+    RE_POWER, RE_LOOP,
     BVNEG, BVAND, BVNAND, BVOR, BVNOR, BVXOR, BVXNOR, BVADD, BVSUB, BVMUL,
     BVUDIV, BVUREM, BVSREM, BVSHL, BV_REPEAT, BV_ROTATE_LEFT, BV_ROTATE_RIGHT,
     BV_EXTRACT, BV_ZERO_EXTEND, BV_SIGN_EXTEND, BVLSHR, BVASHR, BVSDIV, BVSMOD,
@@ -60,17 +61,17 @@ class Context:
         self.globals = globals
         self.locals = locals
 
-    def add_to_globals(self, var, type):
-        if isinstance(type, str):
-            self.globals[var] = sort2type(type)
+    def add_to_globals(self, var, ttype):
+        if isinstance(ttype, str):
+            self.globals[var] = sort2type(ttype)
         else:
-            self.globals[var] = type
+            self.globals[var] = ttype
 
-    def add_to_locals(self, var, type):
-        if isinstance(type, str):
-            self.locals[var] = sort2type(type)
+    def add_to_locals(self, var, ttype):
+        if isinstance(ttype, str):
+            self.locals[var] = sort2type(ttype)
         else:
-            self.locals[var] = type
+            self.locals[var] = ttype
 
 
 class TypeCheckError(Exception):
@@ -97,7 +98,13 @@ class UnknownOperator(Exception):
         super().__init__(self.message)
 
 
-def typecheck_not(expr, ctxt=[]):
+class UnknownType(Exception):
+    def __init__(self, expr):
+        self.message = f"unknown type for expression '{str(expr)}'"
+        super().__init__(self.message)
+
+
+def typecheck_not(expr, ctxt):
     """(not Bool Bool)"""
     typ = typecheck_expr(expr.subterms[0], ctxt)
     if typ != BOOLEAN_TYPE:
@@ -105,7 +112,7 @@ def typecheck_not(expr, ctxt=[]):
     return BOOLEAN_TYPE
 
 
-def typecheck_unary_minus(expr, ctxt=[]):
+def typecheck_unary_minus(expr, ctxt):
     """(- Int Int)
     (- Real Real)
     """
@@ -117,7 +124,7 @@ def typecheck_unary_minus(expr, ctxt=[]):
     return typecheck_expr(expr.subterms[0], ctxt)
 
 
-def typecheck_nary_numeral_ret(expr, ctxt=[]):
+def typecheck_nary_numeral_ret(expr, ctxt):
     """(- Int Int Int :left-assoc)
     (+ Int Int Int :left-assoc)
     (* Int Int Int :left-assoc)
@@ -138,7 +145,7 @@ def typecheck_nary_numeral_ret(expr, ctxt=[]):
     return typ
 
 
-def typecheck_nary_int_ret(expr, ctxt=[]):
+def typecheck_nary_int_ret(expr, ctxt):
     """(div Int Int Int :left-assoc)
     (mod Int Int Int)
     (abs Int Int)
@@ -154,18 +161,23 @@ def is_subtype(t, tprime):
     if t == INTEGER_TYPE and tprime == REAL_TYPE:
         return True
     if isinstance(t, BITVECTOR_TYPE) and isinstance(tprime, BITVECTOR_TYPE):
-        return True
+        return t.bitwidth < tprime.bitwidth
     return False
 
 
-def typecheck_eq(expr, ctxt=[]):
-    """(par (A) (= A A Bool :chainable))
+def typecheck_eq(expr, ctxt):
+    """
+    (par (A) (= A A Bool :chainable))
     (par (A) (distinct A A Bool :pairwise))
     """
-    assert isinstance(expr, Term)
+    assert isinstance(expr, Term),\
+        f"expr represented as {type(expr)}: {str(expr)}"
+    assert expr.subterms,\
+        "Equality-check: expr should have subterms"
+    assert len(expr.subterms) >= 2,\
+        "Equality-check: expr should have at least two subterms"
     typ = typecheck_expr(expr.subterms[0], ctxt)
     for term in expr.subterms[1:]:
-        assert isinstance(term, Term)  # TODO: user-defined datatypes
         t = typecheck_expr(term, ctxt)
         if t != typ:
             if not (is_subtype(t, typ) or is_subtype(typ, t)):
@@ -173,22 +185,43 @@ def typecheck_eq(expr, ctxt=[]):
     return BOOLEAN_TYPE
 
 
-def typecheck_ite(expr, ctxt=[]):
-    """(par (A) (ite Bool A A A))"""
-    typ = typecheck_expr(expr.subterms[0], ctxt)
-    if typecheck_expr(expr.subterms[0], ctxt) != BOOLEAN_TYPE:
-        t = typecheck_expr(expr.subterms[1], ctxt)
-        if not (is_subtype(t, typ) or is_subtype(typ, t)):
-            raise TypeCheckError(expr, expr.subterms[0], typ, BOOLEAN_TYPE)
-    t1 = typecheck_expr(expr.subterms[1], ctxt)
-    t2 = typecheck_expr(expr.subterms[2], ctxt)
-    if t1 != t2:
-        if not (is_subtype(t1, t2) or is_subtype(t2, t1)):
-            raise TypeCheckError(expr, expr.subterms[2], t1, t2)
-    return typecheck_expr(expr.subterms[1], ctxt)
+def typecheck_ite(expr: Term, ctxt):
+    """
+    (par (A) (ite Bool A A A))
+    """
+    # Typecheck all subterms individually
+    assert len(expr.subterms) == 3, "ite takes 3 subterms"
+    ttypes = [typecheck_expr(x, ctxt) for x in expr.subterms]
+    # Bool
+    if ttypes[0] != BOOLEAN_TYPE:
+        raise TypeCheckError(expr, expr.subterms[0], BOOLEAN_TYPE, ttypes[0])
+    # Check for None-values
+    for i in [1, 2]:
+        if ttypes[i] is None:
+            raise TypeCheckError(expr, expr.subterms[i], "A", "None")
+    # Try to determine A (the more general type)
+    ok = False
+    A = None
+    if ttypes[1] == ttypes[2]:
+        # Same type
+        ok = True
+        A = ttypes[1]
+    elif is_subtype(ttypes[1], ttypes[2]):
+        # a1 < a2
+        ok = True
+        A = ttypes[2]
+    elif is_subtype(ttypes[2], ttypes[1]):
+        # a2 < a1
+        ok = True
+        A = ttypes[1]
+    # Failure
+    if not ok:
+        raise TypeCheckError(expr, expr.subterms[2], ttypes[1], ttypes[2])
+    # Success
+    return A
 
 
-def typecheck_nary_bool(expr, ctxt=[]):
+def typecheck_nary_bool(expr, ctxt):
     """
     (and Bool Bool Bool :left-assoc)
     (or Bool Bool Bool :left-assoc)
@@ -432,6 +465,17 @@ def typecheck_re_range(expr, ctxt):
     return REGEXP_TYPE
 
 
+def typecheck_re_power_loop(expr, ctxt):
+    """
+    ((_ re.^ n) RegLan RegLan)
+    ((_ re.loop i n) RegLan RegLan)
+    """
+    t1 = typecheck_expr(expr.subterms[0], ctxt)
+    if t1 != REGEXP_TYPE:
+        raise TypeCheckError(expr, expr, REGEXP_TYPE, t1)
+    return REGEXP_TYPE
+
+
 def typecheck_str_to_int(expr, ctxt):
     """
     (str.to_code String Int)
@@ -491,7 +535,7 @@ def typecheck_string_ops(expr, ctxt):
     if expr.op in [STR_REPLACE, STR_REPLACE_ALL]:
         return typecheck_replace(expr, ctxt)
     if expr.op in [STR_REPLACE_RE, STR_REPLACE_RE_ALL]:
-        return typecheck_replace(expr, ctxt)
+        return typecheck_replace_re(expr, ctxt)
     if expr.op in [STR_TO_CODE, STR_TO_INT]:
         return typecheck_str_to_int(expr, ctxt)
     if expr.op == STR_TO_RE:
@@ -909,7 +953,8 @@ def typecheck_quantifiers(expr, ctxt):
 
 
 def typecheck_core(expr, ctxt):
-    assert isinstance(expr, Term)
+    assert isinstance(expr, Term),\
+        f"expr represented as {type(expr)}: {str(expr)}"
     if expr.op == NOT:
         return typecheck_not(expr, ctxt)
     if expr.op in [AND, OR, XOR, IMPLIES]:
@@ -1011,24 +1056,26 @@ def annotate(f, expr, ctxt):
     ctxt: context
     :returns: type of expr
     """
-    assert isinstance(expr, Term)
+    assert isinstance(expr, Term),\
+        f"expr represented as {type(expr)}: {str(expr)}"
     t = f(expr, ctxt)
-    expr.type = t
+    expr.ttype = t
     return t
 
 
 def typecheck_expr(expr: Term, ctxt=Context({}, {})):
-    assert isinstance(expr, Term)
+    assert isinstance(expr, Term),\
+        f"expr represented as {type(expr)}: {str(expr)}"
     if expr.is_const:
-        return expr.type
+        return expr.ttype
     if expr.is_var or expr.is_indexed_id:
         if expr.name in ctxt.locals:
-            expr.type = ctxt.locals[expr.name]
+            expr.ttype = ctxt.locals[expr.name]
             return ctxt.locals[expr.name]
         elif expr.name in ctxt.globals:
-            expr.type = ctxt.globals[expr.name]
+            expr.ttype = ctxt.globals[expr.name]
             return ctxt.globals[expr.name]
-        return UNKNOWN
+        raise UnknownType(expr)
     elif expr.op:
         if expr.op in CORE_OPS:
             return annotate(typecheck_core, expr, ctxt)
@@ -1074,31 +1121,17 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
             if BV_ZERO_EXTEND in expr.op or BV_SIGN_EXTEND in expr.op:
                 return annotate(typecheck_bv_extend_ops, expr, ctxt)
 
-        # Handle operators which are not represented as strings,
-        # or which did not match any of the above (e.g. functions)
-        key = expr.op.__str__()
+            # Special string/reglan ops
+            if RE_POWER in expr.op or RE_LOOP in expr.op:
+                return annotate(typecheck_re_power_loop, expr, ctxt)
+
+        # Handle operators which did not match any of the above
+        # For instance, functions
+        key = str(expr.op)
         if key in ctxt.globals:
-            signature: str = ctxt.globals[key].strip()
-            # Careful: do we have parentheses?!
-            par_level = 0
-            for x in range(len(signature)):
-                # Go through the string backwards
-                i = len(signature) - 1 - x
-                c = signature[i]
-                if c == ")":
-                    par_level += 1
-                elif c == "(":
-                    par_level -= 1
-                # Stop if all parentheses have cancelled each other out
-                if (
-                    par_level == 0 and
-                    (c.isspace() or c in ["(", ")"] or i == 0)
-                ):
-                    t = signature[i:].strip()
-                    assert len(t) > 0
-                    t = sort2type(t)
-                    expr.type = t
-                    return t
+            ttype = ctxt.globals[key]
+            expr.ttype = ttype
+            return ttype
         
         raise UnknownOperator(expr.op)
 
@@ -1108,7 +1141,8 @@ def typecheck_expr(expr: Term, ctxt=Context({}, {})):
         return annotate(typecheck_let_expression, expr, ctxt)
     elif expr.label:
         return annotate(typecheck_label, expr, ctxt)
-    return UNKNOWN
+
+    raise UnknownType(expr)
 
 
 def typecheck(formula, glob, timeout_limit=30):
@@ -1122,7 +1156,6 @@ def typecheck(formula, glob, timeout_limit=30):
         ctxt = Context(glob, {})
         for cmd in formula.commands:
             if isinstance(cmd, Assert):
-                assert isinstance(cmd.term, Term)
                 typecheck_expr(cmd.term, ctxt)
         return ctxt
 

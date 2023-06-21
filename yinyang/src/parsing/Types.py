@@ -28,6 +28,8 @@ from ffg.gen.gen_configuration import (
     BITVECTOR_OPTION
 )
 
+import re
+
 BOOLEAN_TYPE = "Bool"
 REAL_TYPE = "Real"
 INTEGER_TYPE = "Int"
@@ -64,27 +66,131 @@ def type2ffg(typ):
         return None
 
 
-def sort2type(sort):
-    if "FloatingPoint" in sort:
-        eb = int(sort.split(" ")[2])
-        sb = int(sort.split(" ")[3][:-1])
-        return FP_TYPE(eb, sb)
-
-    if "BitVec" in sort:
-        bitwidth = int(sort.split(" ")[2][:-1])
-        return BITVECTOR_TYPE(bitwidth)
+def sort2type(sort: str):
+    """
+    Possible types are:
+        * Boolean
+        * Real
+        * Integer
+        * Roundingmode
+        * String
+        * Regexp
+        * -----
+        * Array
+        * BitVector
+        * FloatingPoint
+    
+    Approach:
+        1. Identify last subexpression (possibly in parentheses)
+        2. Use that to determine a type
+        3. Raise an exception if no type can be determined
 
     """
-    if sort == "Int":
-        return INTEGER_TYPE
-    """
 
-    if sort.startswith("(Array "):
-        types = sort[1:-1].split(" ")
-        assert len(types) == 3
-        return ARRAY_TYPE(sort2type(types[1]), sort2type(types[2]))
+    # Base case: None
+    if sort is None:
+        raise ValueError(f"UNKNOWN sort2type: None")
 
-    return sort
+    # Base case: empty
+    sort = sort.strip()
+    if len(sort) == 0:
+        raise ValueError(f"UNKNOWN sort2type: '{sort}'")
+
+    # Base case: "A" (exception, needed for generative type aware mutation)
+    if sort == "A":
+        return sort
+
+    # 1. Identify last subexpression
+    last_subexpr = None
+    par_level = 0
+    for x in range(len(sort)):
+        # Go through the string backwards
+        i = len(sort) - 1 - x
+        c = sort[i]
+        if c == ")":
+            par_level += 1
+        elif c == "(":
+            par_level -= 1
+        # Stop if all parentheses have cancelled each other out
+        if (
+            par_level == 0 and
+            (c.isspace() or c in ["(", ")"] or i == 0)
+        ):
+            last_subexpr = sort[i:].strip()
+            assert len(last_subexpr) > 0,\
+                f"faulty sort '{sort}'"
+            break
+    
+    # 2. Convert last subexpression to type
+    # Base types
+    # Note: this may not include UNKNOWN or ALL
+    assert UNKNOWN not in TYPES, "sort2type: do not return UNKNOWN"
+    assert ALL not in TYPES, "sort2type: do not return ALL"
+    if last_subexpr in TYPES:
+        return last_subexpr
+
+    # Array
+    pattern = re.compile(r"\(Array (.+)\)")
+    match = pattern.fullmatch(last_subexpr)
+    if match is not None:
+        index_and_payload = match.group(1)
+        # Split index and payload by counting parentheses
+        index = None
+        payload = None
+        par_level = 0
+        for i in range(len(index_and_payload)):
+            # Go through the string (forward)
+            c = index_and_payload[i]
+            if c == "(":
+                par_level += 1
+            elif c == ")":
+                par_level -= 1
+            # Stop if all parentheses have cancelled each other out
+            if (
+                par_level == 0 and
+                (c.isspace() or c in ["(", ")"])
+            ):
+                # .strip() will be called on sort2type argument
+                index = index_and_payload[0:i + 1]
+                payload = index_and_payload[i + 1:]
+                break
+        assert index is not None and payload is not None,\
+            "Array index and payload type could not be determined"
+        return ARRAY_TYPE(sort2type(index), sort2type(payload))
+
+    # BitVector
+    pattern = re.compile(r"\(_ BitVec ([0-9]+)\)")
+    match = pattern.fullmatch(last_subexpr)
+    if match is not None:
+        try:
+            bitwidth = int(match.group(1))
+            return BITVECTOR_TYPE(bitwidth)
+        except ValueError:
+            assert False, "Bitwidth could not be determined"
+
+    # FloatingPoint
+    # (_ FloatingPoint eb sb)
+    pattern = re.compile(r"\(_ FloatingPoint ([0-9]+) ([0-9]+)\)")
+    match = pattern.fullmatch(last_subexpr)
+    if match is not None:
+        try:
+            eb = int(match.group(1))
+            sb = int(match.group(2))
+            return FP_TYPE(eb, sb)
+        except ValueError:
+            assert False, "eb and sb could not be determined"
+    # Short names:
+    shortcuts = {
+        "Float16": FP_TYPE(5, 11),
+        "Float32": FP_TYPE(8, 24),
+        "Float64": FP_TYPE(11, 53),
+        "Float128": FP_TYPE(15, 113)
+    }
+    fp_t = shortcuts.get(last_subexpr)
+    if fp_t is not None:
+        return fp_t
+
+    raise ValueError(f"UNKNOWN sort2type: '{sort}'")
 
 
 class ARRAY_TYPE:
@@ -248,6 +354,16 @@ STRING_OPS = [
     STR_FROM_CODE,
     STR_FROM_INT,
 ]
+
+"""
+Special string operations
+
+    ((_ re.^ n) RegLan RegLan)
+    ((_ re.loop i n) RegLan RegLan)
+
+"""
+RE_POWER = "(_ re.^"
+RE_LOOP = "(_ re.loop"
 
 # Array ops
 SELECT = "select"

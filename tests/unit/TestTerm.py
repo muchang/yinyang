@@ -47,7 +47,7 @@ class TermTestCase(unittest.TestCase):
         def var2const():
             script, _ = parse_str(formula1)
             script.commands[2].term.substitute(
-                Var(name="v", type="Bool"), Const(name="true", type="Bool")
+                Var(name="v", ttype="Bool"), Const(name="true", ttype="Bool")
             )
             self.assertEqual(
                 script.commands[2].term.__str__(), "(= true (not (= y (- 1))))"
@@ -140,12 +140,13 @@ class TermTestCase(unittest.TestCase):
         def free_vars_let():
             script_str = """\
 (declare-fun ?v_0 () Int)
+(declare-fun f3 () Int)
 (assert (let ((?v_0 (+ (* 4 f3) 1))) (= ?v_0 0)))
 (check-sat)
 (exit)
 """
             script, _ = parse_str(script_str)
-            self.assertEqual(script.free_var_occs.__str__(), "[]")
+            self.assertEqual(script.free_var_occs.__str__(), "[f3:Int]")
 
             script_str = """\
 (declare-fun ?v_0 () Int)
@@ -159,33 +160,45 @@ class TermTestCase(unittest.TestCase):
         def free_vars_let2():
             script_str = """\
 (declare-fun ?v_0 () Int)
+(declare-fun f3 () Int)
 (assert (= ?v_0 0))
 (assert (let ((?v_0 (+ (* 4 f3) 1))) (= ?v_0 0)))
 (check-sat)
 (exit)
 """
             script, _ = parse_str(script_str, silent=False)
-            self.assertEqual(script.free_var_occs.__str__(), "[?v_0:Int]")
+            fv = str(script.free_var_occs)
+            self.assertEqual(fv.count(","), 1)
+            self.assertTrue("?v_0:Int" in fv)
+            self.assertTrue("f3:Int" in fv)
 
             script_str = """\
 (declare-fun ?v_0 () Int)
+(declare-fun f3 () Int)
 (assert (let ((?v_0 (+ (* 4 f3) 1))) (= ?v_0 0)))
 (assert (= ?v_0 0))
 (check-sat)
 (exit)
 """
             script, _ = parse_str(script_str, silent=False)
-            self.assertEqual(script.free_var_occs.__str__(), "[?v_0:Int]")
+            fv = str(script.free_var_occs)
+            self.assertEqual(fv.count(","), 1)
+            self.assertTrue("?v_0:Int" in fv)
+            self.assertTrue("f3:Int" in fv)
 
             script_str = """\
 (declare-fun ?v_0 () Int)
+(declare-fun f3 () Int)
 (assert (let ((?v_0 (+ (* 4 f3) 1))) (= ?v_0 0)))
 (assert (= ?v_0 0))
 (check-sat)
 (exit)
 """
             script, _ = parse_str(script_str, silent=False)
-            self.assertEqual(script.free_var_occs.__str__(), "[?v_0:Int]")
+            fv = str(script.free_var_occs)
+            self.assertEqual(fv.count(","), 1)
+            self.assertTrue("?v_0:Int" in fv)
+            self.assertTrue("f3:Int" in fv)
 
         var2const()
         entire_expr()

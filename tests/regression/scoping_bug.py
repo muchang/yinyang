@@ -27,6 +27,7 @@ sys.path.append("../../")
 from yinyang.src.parsing.Parse import parse_str
 
 script, _ = parse_str("""\
+(declare-fun s () String)
 (declare-fun t () String)
 (declare-fun t1 () String)
 (declare-fun t2 () String)

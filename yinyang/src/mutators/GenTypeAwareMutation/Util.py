@@ -54,12 +54,12 @@ def get_subterms(expr):
                 new_av, new_type = get_subterms(s)
                 av_expr += new_av
                 expr_types += new_type
-            new_type = expr.type
+            new_type = expr.ttype
             expr_types.append(new_type)
             av_expr.append(expr)
         else:
             av_expr.append(expr)
-            expr_types.append(expr.type)
+            expr_types.append(expr.ttype)
     else:
         if expr.term:
             new_av, new_type = get_subterms(expr.term)

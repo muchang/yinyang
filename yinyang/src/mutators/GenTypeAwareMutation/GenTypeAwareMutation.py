@@ -91,13 +91,14 @@ class GenTypeAwareMutation(Mutator):
         An operator op is a candidate (op arg1 ... argk ret)
         (1) if its return type matches the type of t or has polymorphic return
             type (i.e. ret == ALL) and
-        (2) if the seed formula has terms t1...tn such that tk.type = argk.type
+        (2) if the seed formula has terms t1...tn
+            such that tk.ttype = argk.ttype
 
         :returns: a list of candidate operators
         """
         candidate_ops = []
         for op in self.operators:
-            if op.rtype != ALL and op.rtype != term.type:
+            if op.rtype != ALL and op.rtype != term.ttype:
                 continue
             if self.has_types(op.arg_types):
                 candidate_ops.append(op)
@@ -124,7 +125,7 @@ class GenTypeAwareMutation(Mutator):
         op = random.choice(candidate_ops)
         args = []
         if op.name == "id":
-            typ_id = type2num[term.type]
+            typ_id = type2num[term.ttype]
             if self.unique_expr[typ_id]:
                 choices = [
                     termPrime
@@ -148,7 +149,7 @@ class GenTypeAwareMutation(Mutator):
                 args.append(arg)
 
             exp = Expr(op=op.name, subterms=args)
-            exp.type = op.rtype
+            exp.ttype = op.rtype
 
             return exp
         return None
