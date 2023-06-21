@@ -66,7 +66,7 @@ def type2ffg(typ):
         return None
 
 
-def sort2type(sort):
+def sort2type(sort: str):
     """
     Possible types are:
         * Boolean
@@ -86,6 +86,7 @@ def sort2type(sort):
         3. Raise an exception if no type can be determined
 
     """
+
     # Base case: None
     if sort is None:
         raise ValueError(f"UNKNOWN sort2type: None")
@@ -94,6 +95,10 @@ def sort2type(sort):
     sort = sort.strip()
     if len(sort) == 0:
         raise ValueError(f"UNKNOWN sort2type: '{sort}'")
+
+    # Base case: "A" (exception, needed for generative type aware mutation)
+    if sort == "A":
+        return sort
 
     # 1. Identify last subexpression
     last_subexpr = None
