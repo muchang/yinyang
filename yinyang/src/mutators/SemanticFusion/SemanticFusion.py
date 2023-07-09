@@ -141,8 +141,7 @@ class SemanticFusion(Mutator):
            self.formula2.free_var_occs == []:
             skip_seed = True
 
-        formula1, formula2 =\
-            copy.deepcopy(self.formula1), copy.deepcopy(self.formula2)
+        formula1, formula2 = self.formula1, self.formula2
         formula1.prefix_vars("scr1_")
         formula2.prefix_vars("scr2_")
 

@@ -1,7 +1,7 @@
 import copy
 
 from yinyang.src.transformers.Transformer import Transformer, CodeBlock, Context, Environment
-from yinyang.src.transformers.Util import type_smt2dafny
+from yinyang.src.transformers.Util import type_smt2dafny, normalize_var_name
 from yinyang.src.parsing.Ast import Term
 from yinyang.src.parsing.Types import (
     NOT, AND, IMPLIES, OR, XOR, EQUAL, DISTINCT, ITE,
@@ -16,7 +16,7 @@ class DafnyCodeBlock(CodeBlock):
     def __init__(self, tmpid: int, env: Environment, context: Context, args, expression, identifier=None):
         super().__init__(tmpid, args, identifier)
         self.env = env
-        self.context = context
+        self.context = context = copy.deepcopy(context)
         self.expression = expression
         self.statements = []
         self.assignee = ""
@@ -25,9 +25,6 @@ class DafnyCodeBlock(CodeBlock):
             self.statements.append("var %s := %s;" % (self.identifier, self.assignee))
 
     def init_block(self):
-
-        # if isinstance(self.expression, str):
-        #     self.assignee = str(self.expression).replace("!", "").replace("$", "").replace(".", "")
 
         if self.expression.op == ITE:
             
@@ -48,7 +45,6 @@ class DafnyCodeBlock(CodeBlock):
         
         elif self.expression.op == IMPLIES:
             self.assignee = ""
-            context = copy.deepcopy(self.context)
             for subterm in self.expression.subterms:
                 implication = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(implication)
@@ -77,30 +73,12 @@ class DafnyCodeBlock(CodeBlock):
             self.assignee = "- %s" % (unary_minus.identifier)
         
         elif self.expression.op == MINUS and len(self.expression.subterms) > 1:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     minus = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(minus)
-            #     self.assignee += str(minus.identifier) + " - "
-            # self.assignee = self.assignee[:-3]
             self.arith_chain_with(self.expression.subterms, "-")
         
         elif self.expression.op == PLUS:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     plus = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(plus)
-            #     self.assignee += str(plus.identifier) + " + "
-            # self.assignee = self.assignee[:-3]
             self.arith_chain_with(self.expression.subterms, "+")
 
         elif self.expression.op == MULTIPLY:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     multiply = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(multiply)
-            #     self.assignee += str(multiply.identifier) + " * "
-            # self.assignee = self.assignee[:-3]
             self.arith_chain_with(self.expression.subterms, "*")
 
         elif self.expression.op == ABS:
@@ -113,39 +91,15 @@ class DafnyCodeBlock(CodeBlock):
             self.assignee = "if %s >= %s then %s else (- %s)" % (abs.identifier, zero, abs.identifier, abs.identifier)
 
         elif self.expression.op == GTE:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     gte = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(gte)
-            #     self.assignee += str(gte.identifier) + " >= "
-            # self.assignee = self.assignee[:-4]
             self.arith_chain_with(self.expression.subterms, ">=")
 
         elif self.expression.op == GT:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     gt = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(gt)
-            #     self.assignee += str(gt.identifier) + " > "
-            # self.assignee = self.assignee[:-3]
             self.arith_chain_with(self.expression.subterms, ">")
 
         elif self.expression.op == LTE:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     lte = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(lte)
-            #     self.assignee += str(lte.identifier) + " <= "
-            # self.assignee = self.assignee[:-4]
             self.arith_chain_with(self.expression.subterms, "<=")
         
         elif self.expression.op == LT:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     lt = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(lt)
-            #     self.assignee += str(lt.identifier) + " < "
-            # self.assignee = self.assignee[:-3]
             self.arith_chain_with(self.expression.subterms, "<")
         
         elif self.expression.op == DIV:
@@ -231,11 +185,12 @@ class DafnyCodeBlock(CodeBlock):
             for let_term_idx in range(len(self.expression.let_terms)):
                 letterm = DafnyCodeBlock(self.tmpid, self.env, context, self.args, self.expression.let_terms[let_term_idx])
                 self.update_with(letterm)
-                letvar = str(self.expression.var_binders[let_term_idx]).replace("!", "").replace("$","").replace(".", "").replace("~", "")
+                letvar = normalize_var_name(str(self.expression.var_binders[let_term_idx]))
                 if letvar in context.let_vars:
                     context.let_vars[letvar] = letterm.identifier
                     self.statements.append("%s := %s;" % (letvar, letterm.identifier))
                 else:
+                    self.context.let_vars[letvar] = letterm.identifier
                     context.let_vars[letvar] = letterm.identifier
                     self.statements.append("var %s := %s;" % (letvar, letterm.identifier))
             letblock = DafnyCodeBlock(self.tmpid, self.env, context, self.args, self.expression.subterms[0])
@@ -248,7 +203,7 @@ class DafnyCodeBlock(CodeBlock):
             elif str.isdigit(str(self.expression).replace(".", "")):
                 self.assignee = str(self.expression)
             else:
-                self.assignee = str(self.expression).replace("!", "").replace("$", "").replace(".", "").replace("~", "")
+                self.assignee = normalize_var_name(str(self.expression))
 
         elif self.expression.op == AND:
             if len(self.expression.subterms) == 0:
@@ -481,9 +436,9 @@ class DafnyTransformer(Transformer):
     def generate_args(self):
         args_text = ""
         for var in self.context.free_vars:
-            args_text += str(var).replace("!", "").replace("$", "").replace(".", "").replace("~", "") + ": " + str(self.context.free_vars[var]) + ", "
+            args_text += normalize_var_name(str(var)) + ": " + str(self.context.free_vars[var]) + ", "
         for var in self.env.div_vars:
-            args_text += str(var).replace("!", "").replace("$", "").replace(".", "").replace("~", "") + ": " + str(self.env.div_vars[var]) + ", "
+            args_text += normalize_var_name(str(var)) + ": " + str(self.env.div_vars[var]) + ", "
         args_text = "(" + args_text[:-2] + ")"
         return args_text
 
@@ -519,7 +474,7 @@ return_var := %s;
     def generate_args(self):
         args_text = "("
         for var in self.context.free_vars:
-            args_text += str(var).replace("!", "").replace("$", "").replace(".", "").replace("~", "") + ": " + str(self.context.free_vars[var]) + ", "
+            args_text += normalize_var_name(str(var)) + ": " + str(self.context.free_vars[var]) + ", "
         args_text = args_text[:-2] + ")"
         return args_text
 
