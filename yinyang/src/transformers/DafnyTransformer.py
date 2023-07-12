@@ -61,11 +61,17 @@ class DafnyCodeBlock(CodeBlock):
         
         elif self.expression.op == DISTINCT:
             self.assignee = ""
+            distinct_identifiers = []
             for subterm in self.expression.subterms:
                 distinct = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(distinct)
-                self.assignee += str(distinct.identifier) + " != "
-            self.assignee = self.assignee[:-4]
+                distinct_identifiers.append(distinct.identifier)
+            combinations = []
+            for i in range(len(distinct_identifiers)):
+                for j in range(i+1, len(distinct_identifiers)):
+                    combo = str(distinct_identifiers[i]) + " != " + str(distinct_identifiers[j])
+                    combinations.append(combo)
+            self.assignee = " && ".join(combinations)
         
         elif self.expression.op == UNARY_MINUS and len(self.expression.subterms) == 1:
             unary_minus = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -208,6 +214,8 @@ class DafnyCodeBlock(CodeBlock):
         elif self.expression.op == AND:
             if len(self.expression.subterms) == 0:
                 raise Exception("AND with no subterms")
+            if self.tmpid == 5:
+                print("here")
             andblock = DafnyAndBlock(self.tmpid, self.env, self.context, self.args, self.expression)
             self.update_with(andblock)
             self.assignee = andblock.identifier
@@ -267,14 +275,19 @@ class DafnyAndBlock(DafnyCodeBlock):
         assert self.expression.op == AND
         if not self.customizedID:
             self.statements.append("var %s := false;" % self.identifier)
+        tmpid = self.tmpid
         condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.update_with(condition)
         context = copy.deepcopy(self.context)
+        if condition.identifier == "tmp_6":
+            print("here")
         self.statements.append("while (%s) {" % condition.identifier)
 
         if len(self.expression.subterms) == 1:
             self.statements.append("%s := true;" % self.identifier)
         else:
+            if self.tmpid == 6:
+                print("here")
             subblock = DafnyAndBlock(self.tmpid, self.env, context, self.args, Term(op="and", subterms=self.expression.subterms[1:]), identifier=self.identifier)
             self.update_with(subblock)
         self.statements.append("break;")
