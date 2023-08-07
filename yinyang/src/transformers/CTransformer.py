@@ -1,7 +1,7 @@
 import copy
 
 from yinyang.src.transformers.Transformer import Transformer, CodeBlock, Context, Environment
-from yinyang.src.transformers.Util import type_smt2dafny
+from yinyang.src.transformers.Util import type_smt2c, normalize_var_name
 from yinyang.src.parsing.Ast import Term
 from yinyang.src.parsing.Types import (
     NOT, AND, IMPLIES, OR, XOR, EQUAL, DISTINCT, ITE,
@@ -38,8 +38,13 @@ class CCodeBlock(CodeBlock):
             self.update_with(condition)
             self.update_with(branch1)
             self.update_with(branch2)
-
-            self.assignee = "if %s then %s else %s" % (condition.identifier, branch1.identifier, branch2.identifier)
+            
+            
+            ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition.identifier, branch1.identifier, branch2.identifier, self.identifier)
+            self.update_with(ifelseblock)
+            self.assignee = ifelseblock.identifier
+            
+            # "if %s then %s else %s" % (condition.identifier, branch1.identifier, branch2.identifier)
 
         elif self.expression.op == NOT:
             negation = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -49,11 +54,14 @@ class CCodeBlock(CodeBlock):
         elif self.expression.op == IMPLIES:
             self.assignee = ""
             context = copy.deepcopy(self.context)
-            for subterm in self.expression.subterms:
-                implication = CCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-                self.update_with(implication)
-                self.assignee += str(implication.identifier) + " ==> "
-            self.assignee = self.assignee[:-5]
+            implitesblock = CImpliesBlock(self.tmpid, self.env, context, self.args, self.expression)
+            self.update_with(implitesblock)
+            self.assignee = implitesblock.identifier
+            # for subterm in self.expression.subterms:
+            #     implication = CCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            #     self.update_with(implication)
+            #     self.assignee += str(implication.identifier) + " ==> "
+            # self.assignee = self.assignee[:-5]
         
         elif self.expression.op == EQUAL:
             self.assignee = ""
@@ -110,7 +118,9 @@ class CCodeBlock(CodeBlock):
                 zero = "0.0" 
             else: 
                 zero = "0"
-            self.assignee = "if %s >= %s then %s else (- %s)" % (abs.identifier, zero, abs.identifier, abs.identifier)
+            ifelseblock = CIfElseBlock(self.tmpid,  self.env, self.context, self.args, "%s >= %s" % (abs.identifier, zero), abs.identifier, "- %s" % abs.identifier, self.identifier)
+            self.update_with(ifelseblock)
+            self.assignee = ifelseblock.identifier
 
         elif self.expression.op == GTE:
             # self.assignee = ""
@@ -168,7 +178,9 @@ class CCodeBlock(CodeBlock):
             #end    
             condition = condition[:-3]
             assignee = assignee[:-3]
-            self.assignee += "if %s then %s else %s" % (condition, assignee, free_var)
+            ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, assignee, free_var, self.identifier)
+            self.update_with(ifelseblock)
+            self.assignee = ifelseblock.identifier
         
         elif self.expression.op == MOD:
             self.assignee = ""
@@ -190,14 +202,16 @@ class CCodeBlock(CodeBlock):
             #end
             condition = condition[:-3]
             assignee = assignee[:-3]
-            self.assignee += "if %s then %s else %s" % (condition, assignee, free_var)
+            ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, assignee, free_var, self.identifier)
+            self.update_with(ifelseblock)
+            self.assignee = ifelseblock.identifier
 
         elif self.expression.op == REAL_DIV:
             self.assignee = ""
             # free variable for division by zero
             free_var = "div_%s" % self.tmpid
             self.tmpid += 1
-            self.env.div_vars[free_var] = "real"
+            self.env.div_vars[free_var] = "float"
             # first subterm is the dividend
             condition = "true && "
             real_div = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -212,13 +226,15 @@ class CCodeBlock(CodeBlock):
             #end
             condition = condition[:-3]
             assignee = assignee[:-3]
-            self.assignee += "if %s then %s else %s" % (condition, assignee, free_var)
+            ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, assignee, free_var, self.identifier)
+            self.update_with(ifelseblock)
+            self.assignee = ifelseblock.identifier
         
         elif self.expression.let_terms != None:
             for let_term_idx in range(len(self.expression.let_terms)):
                 letterm = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.let_terms[let_term_idx])
                 self.update_with(letterm)
-                letvar = str(self.expression.var_binders[let_term_idx]).replace("!", "").replace("$","").replace(".", "").replace("~", "")
+                letvar = normalize_var_name(str(self.expression.var_binders[let_term_idx]))
                 if letvar in self.context.let_vars:
                     self.context.let_vars[letvar] = letterm.identifier
                     self.statements.append("%s = %s;" % (letvar, letterm.identifier))
@@ -235,7 +251,7 @@ class CCodeBlock(CodeBlock):
             elif str.isdigit(str(self.expression).replace(".", "")):
                 self.assignee = str(self.expression)
             else:
-                self.assignee = str(self.expression).replace("!", "").replace("$", "").replace(".", "").replace("~", "")
+                self.assignee = normalize_var_name(str(self.expression))
 
         elif self.expression.op == AND:
             if len(self.expression.subterms) == 0:
@@ -379,6 +395,48 @@ class CXORBlock(CCodeBlock):
             self.update_with(subblock)
         self.statements.append("}")
 
+class CImpliesBlock(CCodeBlock):
+    
+    def init_block(self):
+        assert self.expression.op == IMPLIES
+        if not self.customizedID:
+            self.statements.append("bool %s = true;" % self.identifier)
+        condition = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+        self.update_with(condition)
+        context = copy.deepcopy(self.context)
+        self.statements.append("if (%s) {" % condition.identifier)
+        if len(self.expression.subterms) == 1:
+            self.statements.append("%s = true;" % self.identifier)
+        else:
+            subblock = CImpliesBlock(self.tmpid, self.env, context, self.args, Term(op="=>", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+            self.update_with(subblock)
+        self.statements.append("}")
+        if len(self.expression.subterms) == 1:
+            self.statements.append("else {")
+            self.statements.append("%s = false;" % self.identifier)
+            self.statements.append("}")
+    
+    def __str__(self):
+        return "".join(self.statements)
+
+
+class CIfElseBlock(CCodeBlock):
+
+    def __init__(self, tmpid: int, env: Environment, context: Context, args, condition, truevalue, falsevalue, identifier=None):
+        self.condition = condition
+        self.truevalue = truevalue
+        self.falsevalue = falsevalue
+        super().__init__(tmpid, env, context, args, identifier)
+    
+    def init_block(self):
+        self.statements.append("auto %s = %s;" % (self.identifier, self.falsevalue))
+        self.statements.append("if (%s) {" % self.condition)
+        self.statements.append("%s = %s;" % (self.identifier, self.truevalue))
+        self.statements.append("}")
+
+    def __str__(self):
+        return "\n".join(self.statements)
+
 class CContext(Context):
     
     def __init__(self, context=None):
@@ -386,11 +444,11 @@ class CContext(Context):
 
     def get_free_vars_from(self, smt_variables):
         for var in smt_variables:
-            self.free_vars[var] = type_smt2dafny(smt_variables[var])
+            self.free_vars[var] = type_smt2c(smt_variables[var])
     
     def get_defined_vars_from(self, smt_variables):
         for var in smt_variables:
-            self.free_vars[var] = type_smt2dafny(smt_variables[var][0])
+            self.free_vars[var] = type_smt2c(smt_variables[var][0])
 
 class CEnvironment(Environment):
 
@@ -407,6 +465,9 @@ class CTransformer(Transformer):
         self.env = CEnvironment()
         self.context.get_free_vars_from(self.free_variables)
         self.context.get_defined_vars_from(self.defined_variables)
+        self.lib = []
+        self.lib.append("#include <assert.h>")
+        self.lib.append("#include <stdbool.h>")
 
         self.assert_methods = []
         for assert_cmd in self.assert_cmds:
@@ -434,10 +495,12 @@ class CTransformer(Transformer):
     def __str__(self) -> str:
         assert_identifiers = []
         text = ""
+        for lib in self.lib:
+            text += lib + "\n"
         if self.args.method_support:
             for method in self.env.methods:
                 text += method
-            text += "\nmethod main "
+            text += "\nvoid main "
             text += self.generate_args() + " {\n"
             for method in self.defined_assertions:
                 text += "\nbool %s = %s;\n" % (method[0], method[1].generate_call())
@@ -449,7 +512,7 @@ class CTransformer(Transformer):
             text += "assert (! oracle);\n"
             text += "}"
         else:
-            text += "\nmethod main "
+            text += "\nvoid main "
             text += self.generate_args() + " {\n"
             for method in self.defined_assertions:
                 text += str(method[1])
@@ -465,9 +528,9 @@ class CTransformer(Transformer):
     def generate_args(self):
         args_text = ""
         for var in self.context.free_vars:
-            args_text += str(var).replace("!", "").replace("$", "").replace(".", "").replace("~", "") + ": " + str(self.context.free_vars[var]) + ", "
+            args_text += str(self.context.free_vars[var]) + " " + normalize_var_name(str(var)) + ", "
         for var in self.env.div_vars:
-            args_text += str(var).replace("!", "").replace("$", "").replace(".", "").replace("~", "") + ": " + str(self.env.div_vars[var]) + ", "
+            args_text += str(self.env.div_vars[var]) + " " + normalize_var_name(str(var)) + ", "
         args_text = "(" + args_text[:-2] + ")"
         return args_text
 
@@ -503,7 +566,7 @@ return %s;
     def generate_args(self):
         args_text = "("
         for var in self.context.free_vars:
-            args_text += str(self.context.free_vars[var]) + " " + str(var).replace("!", "").replace("$", "").replace(".", "").replace("~", "")
+            args_text += str(self.context.free_vars[var]) + " " + clean_name(str(var))
         args_text = args_text[:-2] + ")"
         return args_text
 

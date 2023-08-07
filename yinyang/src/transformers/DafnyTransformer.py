@@ -168,7 +168,7 @@ class DafnyCodeBlock(CodeBlock):
             #end    
             condition = condition[:-3]
             assignee = assignee[:-3]
-            self.assignee += "if %s then %s else %s" % (condition, assignee, free_var)
+            self.assignee = "if %s then %s else %s" % (condition, assignee, free_var)
         
         elif self.expression.op == MOD:
             self.assignee = ""
@@ -190,7 +190,7 @@ class DafnyCodeBlock(CodeBlock):
             #end
             condition = condition[:-3]
             assignee = assignee[:-3]
-            self.assignee += "if %s then %s else %s" % (condition, assignee, free_var)
+            self.assignee = "if %s then %s else %s" % (condition, assignee, free_var)
 
         elif self.expression.op == REAL_DIV:
             self.assignee = ""
@@ -212,7 +212,7 @@ class DafnyCodeBlock(CodeBlock):
             #end
             condition = condition[:-3]
             assignee = assignee[:-3]
-            self.assignee += "if %s then %s else %s" % (condition, assignee, free_var)
+            self.assignee = "if %s then %s else %s" % (condition, assignee, free_var)
         
         elif self.expression.let_terms != None:
             for let_term_idx in range(len(self.expression.let_terms)):

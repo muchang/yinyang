@@ -5,6 +5,7 @@ path = Path(__file__)
 rootpath = str(path.parent.absolute().parent.parent.parent)
 sys.path.append(rootpath)
 
+from yinyang.src.transformers.CTransformer import CTransformer
 from yinyang.src.transformers.DafnyTransformer import DafnyTransformer
 from yinyang.src.parsing.Parse import parse_file
 
@@ -52,11 +53,21 @@ parser.add_argument(
     "--loop-wrap",
     action="store_true"
 )
-
+parser.add_argument(
+    "-l",
+    "--language",
+    default="dafny",
+    metavar="{dafny, c}",
+    type=str
+)
 args = parser.parse_args()
 
 print(args.smtfile)
 formula = parse_file(args.smtfile)
-transformer = DafnyTransformer(formula, args)
+transformer = None
+if args.language == "c":
+    transformer = CTransformer(formula, args)
+elif args.language == "dafny":
+    transformer = DafnyTransformer(formula, args)
 with open(args.dafnyfile, "w") as f:
     f.write(str(transformer))
