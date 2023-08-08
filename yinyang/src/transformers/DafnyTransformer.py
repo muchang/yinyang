@@ -214,8 +214,6 @@ class DafnyCodeBlock(CodeBlock):
         elif self.expression.op == AND:
             if len(self.expression.subterms) == 0:
                 raise Exception("AND with no subterms")
-            if self.tmpid == 5:
-                print("here")
             andblock = DafnyAndBlock(self.tmpid, self.env, self.context, self.args, self.expression)
             self.update_with(andblock)
             self.assignee = andblock.identifier
@@ -279,8 +277,6 @@ class DafnyAndBlock(DafnyCodeBlock):
         condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.update_with(condition)
         context = copy.deepcopy(self.context)
-        if condition.identifier == "tmp_6":
-            print("here")
         self.statements.append("while (%s) {" % condition.identifier)
 
         if len(self.expression.subterms) == 1:

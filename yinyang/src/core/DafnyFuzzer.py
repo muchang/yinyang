@@ -465,7 +465,7 @@ class DafnyFuzzer(Fuzzer):
             random_string(),
         )
         try:
-            with open(report+".smt", "w") as report_writer:
+            with open(report+".smt2", "w") as report_writer:
                 report_writer.write(script.__str__())
         except Exception:
             logging.error("error: couldn't copy scratchfile to bugfolder.")
