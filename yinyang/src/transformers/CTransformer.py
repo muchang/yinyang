@@ -566,7 +566,7 @@ return %s;
     def generate_args(self):
         args_text = "("
         for var in self.context.free_vars:
-            args_text += str(self.context.free_vars[var]) + " " + clean_name(str(var))
+            args_text += str(self.context.free_vars[var]) + " " + normalize_var_name(str(var))
         args_text = args_text[:-2] + ")"
         return args_text
 

@@ -41,6 +41,7 @@ from yinyang.src.base.Exitcodes import OK_BUGS, OK_NOBUGS
 from yinyang.src.base.Exitcodes import ERR_USAGE, ERR_INTERNAL
 
 from yinyang.src.core.DafnyFuzzer import DafnyFuzzer
+from yinyang.src.core.CFuzzer import CFuzzer
 
 from yinyang.config.OpfuzzHelptext import (
     usage,
@@ -83,7 +84,7 @@ def main():
     else:
         args = run_checks(parser, "dafnyfuzz")
         # try:
-        fuzzer = DafnyFuzzer(args, "dafnyfuzz")
+        fuzzer = CFuzzer(args, "dafnyfuzz")
 
         def print_stats():
             fuzzer.statistic.printsum()

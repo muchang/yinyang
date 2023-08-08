@@ -88,7 +88,7 @@ class SemanticFusion(Mutator):
                 curr.append(line)
 
         for _, mr in enumerate(_mrs):
-            template, _ = parse_str(mr)
+            template, _, _ = parse_str(mr)
             if (get_z_idx(template) != self.multiple_variables):
                 continue
             populate_template_map(self.templates, template)
@@ -141,8 +141,7 @@ class SemanticFusion(Mutator):
            self.formula2.free_var_occs == []:
             skip_seed = True
 
-        formula1, formula2 =\
-            copy.deepcopy(self.formula1), copy.deepcopy(self.formula2)
+        formula1, formula2 = self.formula1, self.formula2
         formula1.prefix_vars("scr1_")
         formula2.prefix_vars("scr2_")
 

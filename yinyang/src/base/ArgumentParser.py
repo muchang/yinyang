@@ -137,7 +137,6 @@ def add_dafnyfuzz_args(parser, rootpath, current_dir):
         "--loop-wrap",
         action="store_true"
     )
-    
 
 
 def add_opfuzz_args(parser, rootpath, current_dir):
@@ -199,13 +198,13 @@ def add_typefuzz_args(parser, rootpath, current_dir):
 
 
 def add_yinyang_args(parser, rootpath, current_dir):
-    parser.add_argument(
-        "-o",
-        "--oracle",
-        default="sat",
-        metavar="{sat,unsat}",
-        type=str,
-    )
+    # parser.add_argument(
+    #     "-o",
+    #     "--oracle",
+    #     default="sat",
+    #     metavar="{sat,unsat}",
+    #     type=str,
+    # )
     parser.add_argument(
         "-i",
         "--iterations",
@@ -259,6 +258,8 @@ def build_dafnyfuzz_parser(current_dir, usage):
         add_typefuzz_args(parser, ROOTPATH, current_dir)
     elif args.mutation_engine == "opfuzz":
         add_opfuzz_args(parser, ROOTPATH, current_dir)
+    elif args.mutation_engine == "yinyang":
+        add_yinyang_args(parser, ROOTPATH, current_dir)
 
     return parser
 

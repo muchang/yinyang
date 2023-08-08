@@ -32,6 +32,7 @@ class Dafny:
         self.cil = cil
 
     def solve(self, file, timeout, debug=False):
+        cmd = []
         try:
             dafny_cmd = list(filter(None, self.cil.split(" ")))
             cmd = [dafny_cmd[0]] + [file] + dafny_cmd[1:]
@@ -60,6 +61,7 @@ class Dafny:
             return stdout, stderr, 0
 
         except FileNotFoundError:
+            assert (len(cmd) > 0)
             print('error: solver "' + cmd[0] + '" not found', flush=True)
             exit(ERR_USAGE)
 
