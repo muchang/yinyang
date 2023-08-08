@@ -19,6 +19,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+from yinyang.src.transformers.Util import normalize_var_name
 
 class Transformer:
     def __init__(self, formula, args):
@@ -41,7 +42,7 @@ class CodeBlock:
             self.tmpid += 1
         else:
             self.customizedID = True
-            self.identifier = identifier
+            self.identifier = normalize_var_name(identifier)
 
 class Context:
     def __init__(self, context=None):
@@ -58,14 +59,16 @@ class Context:
         self.free_vars.update(context.free_vars)
         self.let_vars.update(context.let_vars)
         self.defined_vars.update(context.defined_vars)
-
+        
 class Environment:
     def __init__(self):
         self.methods = []
         self.global_vars = {}
         self.div_vars = {}
+        self.div_exps = {}
     
     def add_environment(self, env: 'Environment'):
         self.methods.extend(env.methods)
         self.global_vars.update(env.global_vars)
         self.div_vars.update(env.div_vars)
+        self.div_exps.update(env.div_exps)
