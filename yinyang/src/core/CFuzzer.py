@@ -30,7 +30,8 @@ import random
 import signal
 import logging
 import pathlib
-
+import faulthandler
+faulthandler.enable()
 from yinyang.src.base.Utils import timeout_handler, TimeoutException
 
 from yinyang.src.core.Fuzzer import Fuzzer
@@ -90,13 +91,13 @@ class CFuzzer(Fuzzer):
         self.strategy = self.args.mutation_engine
 
     def process_seed(self, seed):
-        if not admissible_seed_size(seed, self.args):
-            self.statistic.invalid_seeds += 1
-            logging.debug("Skip invalid seed: exceeds max file size")
-            return None, None
+        # if not admissible_seed_size(seed, self.args):
+        #     self.statistic.invalid_seeds += 1
+        #     logging.debug("Skip invalid seed: exceeds max file size")
+        #     return None, None
 
         self.currentseeds.append(pathlib.Path(seed).stem)
-        script, glob, _ = parse_file(seed, silent=True)
+        script, glob, _ = parse_file(seed, silent=False)
 
         if not script:
 
@@ -139,45 +140,11 @@ class CFuzzer(Fuzzer):
         num_targets = len(self.args.SOLVER_CLIS)
         log_strategy_num_seeds(self.strategy, num_seeds, num_targets)
 
+        i = 0
         for seed in seeds:
-            script = None
-            if self.strategy == "typefuzz":
-                signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(self.args.timeout)
-                try:
-                    script, globvar = self.get_script(seed)
-                    if not script:
-                        continue
-
-                    typecheck(script, globvar)
-                    script_cp = copy.deepcopy(script)
-                    unique_expr = get_unique_subterms(script_cp)
-                    self.mutator = GenTypeAwareMutation(
-                        script, self.args, unique_expr
-                    )
-                    signal.alarm(0)
-                except TimeoutException:
-                    continue
-
-            elif self.strategy == "opfuzz":
-                script, _ = self.get_script(seed)
-                if not script:
-                    continue
-                self.mutator = TypeAwareOpMutation(script, self.args)
-
-            elif self.strategy == "yinyang":
-                script1, _, script2, _ = self.get_script_pair(seed)
-                if not script1 or not script2:
-                    continue
-                self.mutator = SemanticFusion(script1, script2, self.args)
-
-            elif self.strategy == "none":
-                script, _ = self.get_script(seed)
-                if not script:
-                    continue
-                self.mutator = None
-            else:
-                assert False
+            i += 1
+            if self.generate_mutator(seed) == False:
+                continue
 
             log_generation_attempt(self.args)
 
@@ -187,10 +154,11 @@ class CFuzzer(Fuzzer):
 
             for i in range(self.args.iterations):
                 self.print_stats()
-                assert script is not None
                 if self.mutator is not None:
                     mutant, success, skip_seed = self.mutator.mutate()
+                    self.generate_mutator(seed)
                 else:
+                    script, _ = self.get_script(seed)
                     mutant, success, skip_seed = script, True, False
 
                 # Reason for unsuccessful generation: randomness in the
@@ -232,11 +200,12 @@ class CFuzzer(Fuzzer):
                     except OSError:
                         pass
 
-                if not mutate_further:  # Continue to next seed.
-                    log_skip_seed_test(self.args, i)
-                    break  # Continue to next seed.
+                # if not mutate_further:  # Continue to next seed.
+                #     log_skip_seed_test(self.args, i)
+                #     break  # Continue to next seed.
 
             log_finished_generations(successful_gens, unsuccessful_gens)
+        print ("All seeds processed, number of seeds: %d" % i)
         self.terminate()
 
     def create_testbook(self, script):
@@ -259,6 +228,46 @@ class CFuzzer(Fuzzer):
         for cli in self.args.SOLVER_CLIS:
             testbook.append((cli, testcase))
         return testbook
+
+    def generate_mutator(self, seed):
+        if self.strategy == "typefuzz":
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(self.args.timeout)
+            try:
+                script, globvar = self.get_script(seed)
+                if not script:
+                    return False
+
+                typecheck(script, globvar)
+                script_cp = copy.deepcopy(script)
+                unique_expr = get_unique_subterms(script_cp)
+                self.mutator = GenTypeAwareMutation(
+                    script, self.args, unique_expr
+                )
+                signal.alarm(0)
+            except TimeoutException:
+                return False
+
+        elif self.strategy == "opfuzz":
+            script, _ = self.get_script(seed)
+            if not script:
+                return False
+            self.mutator = TypeAwareOpMutation(script, self.args)
+
+        elif self.strategy == "yinyang":
+            script1, _, script2, _ = self.get_script_pair(seed)
+            if not script1 or not script2:
+                return False
+            self.mutator = SemanticFusion(script1, script2, self.args)
+
+        elif self.strategy == "none":
+            script, _ = self.get_script(seed)
+            if not script:
+                return False
+            self.mutator = None
+        else:
+            assert False
+        return True
 
     def test(self, script, iteration, scratchprefix):
         """
@@ -360,6 +369,7 @@ class CFuzzer(Fuzzer):
         )
 
         if compiler_exitcode != 0:
+            
 
             # Check whether the solver crashed with a segfault.
             if compiler_exitcode == -signal.SIGSEGV or compiler_exitcode == 245:
@@ -384,6 +394,13 @@ class CFuzzer(Fuzzer):
                 raise Exception("Compiler not found: %s" % compiler_cli)
             
             else:
+                compiler_stderr += str(-signal.SIGSEGV) + str(compiler_exitcode)
+                path = self.report(
+                    script, transformer, "segfault", compiler_cli, compiler_stdout, compiler_stderr
+                )
+                log_segfault_trigger(self.args, path, iteration)
+                return True
+
                 raise Exception("Dafny exited with code %s, stdout %s, stderr %s" % (compiler_exitcode, compiler_stdout, compiler_stderr))
             
         else:
