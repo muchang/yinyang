@@ -9,4 +9,4 @@ def type_smt2dafny(smt_type):
         raise Exception("Unsupported type: %s" % smt_type)
 
 def normalize_var_name(var_name):
-    return var_name.replace("!", "").replace("$","").replace(".", "").replace("~", "").replace("|", "")
+    return var_name.replace("!", "").replace("$","").replace(".", "").replace("~", "").replace("|", "").replace("#", "")
