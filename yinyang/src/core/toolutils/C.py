@@ -28,14 +28,15 @@ from yinyang.src.core.Solver import  SolverQueryResult, SolverResult
 
 
 class Compiler:
-    def __init__(self, cil):
+    def __init__(self, cil, scratchprefix):
         self.cil = cil
+        self.output = scratchprefix
 
     def compile(self, file, timeout, debug=False):
         cmd = []
         try:
-            dafny_cmd = list(filter(None, self.cil.split(" ")))
-            cmd = [dafny_cmd[0]] + [file] + dafny_cmd[1:]
+            compiler_cmd = list(filter(None, self.cil.split(" ")))
+            cmd = compiler_cmd + [file] + ["-o"] + [self.output]
             if debug:
                 print("cmd: " + " ".join(cmd), flush=True)
             output = subprocess.run(
@@ -62,7 +63,7 @@ class Compiler:
 
         except FileNotFoundError:
             assert (len(cmd) > 0)
-            print('error: solver "' + cmd[0] + '" not found', flush=True)
+            print('error: compiler "' + cmd[0] + '" not found', flush=True)
             exit(ERR_USAGE)
 
         stdout = output.stdout.decode()
@@ -74,16 +75,47 @@ class Compiler:
 
         return stdout, stderr, returncode
 
-    def grep_result(self, stdout):
-        if "assertion might not hold" in stdout:
-            return SolverResult(SolverQueryResult.SAT)
-        elif "getting info about 'unknown' response" in stdout:
-            return SolverResult(SolverQueryResult.UNKNOWN)
-        elif "out of resource" in stdout:
-            return SolverResult(SolverQueryResult.UNKNOWN)
-        elif "0 error" in stdout:
-            return SolverResult(SolverQueryResult.UNSAT)
-        else:
-            raise Exception("dafny: unknown result \n %d", stdout)
-            return SolverResult(SolverQueryResult.UNKNOWN)  
+    def execute_binary(self, timeout, debug=False):
+        cmd = [self.output]
+        try:
+            if debug:
+                print("cmd: " + " ".join(cmd), flush=True)
+            output = subprocess.run(
+                cmd,
+                timeout=timeout,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                shell=True,
+            )
+
+        except subprocess.TimeoutExpired as te:
+            if te.stdout and te.stderr:
+                stdout = te.stdout.decode()
+                stderr = te.stderr.decode()
+            else:
+                stdout = ""
+                stderr = ""
+            return stdout, stderr, 137
+
+        except ValueError:
+            stdout = ""
+            stderr = ""
+            return stdout, stderr, 0
+
+        except FileNotFoundError:
+            assert (len(cmd) > 0)
+            print('error: binary "' + cmd[0] + '" not found', flush=True)
+            exit(ERR_USAGE)
+
+        stdout = output.stdout.decode()
+        stderr = output.stderr.decode()
+        returncode = output.returncode
+
+        if debug:
+            print("output: " + stdout + "\n" + stderr)
+
+        return stdout, stderr, returncode
+
+
+        
 

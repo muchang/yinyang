@@ -73,11 +73,17 @@ class CCodeBlock(CodeBlock):
         
         elif self.expression.op == DISTINCT:
             self.assignee = ""
+            distinct_identifiers = []
             for subterm in self.expression.subterms:
                 distinct = CCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(distinct)
-                self.assignee += str(distinct.identifier) + " != "
-            self.assignee = self.assignee[:-4]
+                distinct_identifiers.append(distinct.identifier)
+            combinations = []
+            for i in range(len(distinct_identifiers)):
+                for j in range(i+1, len(distinct_identifiers)):
+                    combo = "(" + str(distinct_identifiers[i]) + " != " + str(distinct_identifiers[j]) + ")"
+                    combinations.append(combo)
+            self.assignee = " && ".join(combinations)
         
         elif self.expression.op == UNARY_MINUS and len(self.expression.subterms) == 1:
             unary_minus = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
