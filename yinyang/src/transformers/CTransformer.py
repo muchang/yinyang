@@ -508,6 +508,9 @@ class CTransformer(Transformer):
                 text += method
             text += "\nvoid main "
             text += self.generate_args() + " {\n"
+            for arg in self.context.free_vars:
+                if self.context.free_vars[arg] == "bool":
+                    text += "if (%s != false) %s = true;\n" % (normalize_var_name(str(arg)), normalize_var_name(str(arg)))
             for method in self.defined_assertions:
                 text += "\nbool %s = %s;\n" % (method[0], method[1].generate_call())
             for method in self.assert_methods:
@@ -520,6 +523,9 @@ class CTransformer(Transformer):
         else:
             text += "\nvoid main "
             text += self.generate_args() + " {\n"
+            for arg in self.context.free_vars:
+                if self.context.free_vars[arg] == "bool":
+                    text += "if (%s != false) %s = true;\n" % (normalize_var_name(str(arg)), normalize_var_name(str(arg)))
             for method in self.defined_assertions:
                 text += str(method[1])
                 text += "\nbool %s = %s;\n" % (method[0], method[1].identifier)
