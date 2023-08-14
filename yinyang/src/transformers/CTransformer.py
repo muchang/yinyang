@@ -22,7 +22,10 @@ class CCodeBlock(CodeBlock):
         self.assignee = ""
         self.init_block()
         if self.assignee != "":
-            self.statements.append("auto %s = %s;" % (self.identifier, self.assignee))
+            if self.args.real_support:
+                self.statements.append("double %s = %s;" % (self.identifier, self.assignee))
+            else:
+                self.statements.append("int %s = %s;" % (self.identifier, self.assignee))
 
     def init_block(self):
 
@@ -65,11 +68,17 @@ class CCodeBlock(CodeBlock):
         
         elif self.expression.op == EQUAL:
             self.assignee = ""
+            equal_identifiers = []
             for subterm in self.expression.subterms:
                 equal = CCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
                 self.update_with(equal)
-                self.assignee += str(equal.identifier) + " == "
-            self.assignee = self.assignee[:-4]
+                equal_identifiers.append(equal.identifier)
+            combinations = []
+            for i in range(len(equal_identifiers)):
+                for j in range(i+1, len(equal_identifiers)):
+                    combo = "(" + str(equal_identifiers[i]) + " == " + str(equal_identifiers[j]) + ")"
+                    combinations.append(combo)
+            self.assignee = " && ".join(combinations)
         
         elif self.expression.op == DISTINCT:
             self.assignee = ""
@@ -135,6 +144,8 @@ class CCodeBlock(CodeBlock):
             #     self.update_with(gte)
             #     self.assignee += str(gte.identifier) + " >= "
             # self.assignee = self.assignee[:-4]
+            if len(self.expression.subterms) == 1:
+                raise Exception("LTE with one subterm")
             self.arith_chain_with(self.expression.subterms, ">=")
 
         elif self.expression.op == GT:
@@ -153,6 +164,8 @@ class CCodeBlock(CodeBlock):
             #     self.update_with(lte)
             #     self.assignee += str(lte.identifier) + " <= "
             # self.assignee = self.assignee[:-4]
+            if len(self.expression.subterms) == 1:
+                raise Exception("LTE with one subterm")
             self.arith_chain_with(self.expression.subterms, "<=")
         
         elif self.expression.op == LT:
@@ -217,7 +230,7 @@ class CCodeBlock(CodeBlock):
             # free variable for division by zero
             free_var = "div_%s" % self.tmpid
             self.tmpid += 1
-            self.env.div_vars[free_var] = "float"
+            self.env.div_vars[free_var] = "double"
             # first subterm is the dividend
             condition = "true && "
             real_div = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -246,7 +259,10 @@ class CCodeBlock(CodeBlock):
                     self.statements.append("%s = %s;" % (letvar, letterm.identifier))
                 else:
                     self.context.let_vars[letvar] = letterm.identifier
-                    self.statements.append("auto %s = %s;" % (letvar, letterm.identifier))
+                    if self.args.real_support:
+                        self.statements.append("double %s = %s;" % (letvar, letterm.identifier))
+                    else:
+                        self.statements.append("int %s = %s;" % (letvar, letterm.identifier))
             letblock = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             self.update_with(letblock)
             self.assignee = letblock.identifier
@@ -296,7 +312,7 @@ class CCodeBlock(CodeBlock):
         identifier = "tmp_"+str(self.tmpid)
         self.tmpid += 1
         if self.args.real_support:
-            self.statements.append("float %s[%s];" % (identifier, len(subterms)))
+            self.statements.append("double %s[%s];" % (identifier, len(subterms)))
         else:
             self.statements.append("int %s[%s];" % (identifier, len(subterms)))
         index = 0
@@ -435,7 +451,10 @@ class CIfElseBlock(CCodeBlock):
         super().__init__(tmpid, env, context, args, identifier)
     
     def init_block(self):
-        self.statements.append("auto %s = %s;" % (self.identifier, self.falsevalue))
+        if self.args.real_support:
+            self.statements.append("double %s = %s;" % (self.identifier, self.falsevalue))
+        else:
+            self.statements.append("int %s = %s;" % (self.identifier, self.falsevalue))
         self.statements.append("if (%s) {" % self.condition)
         self.statements.append("%s = %s;" % (self.identifier, self.truevalue))
         self.statements.append("}")
