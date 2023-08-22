@@ -1,6 +1,28 @@
+# MIT License
+#
+# Copyright (c) [2020 - 2021] The yinyang authors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import copy
 
-from yinyang.src.transformers.Transformer import Transformer, CodeBlock, Context, Environment
+from yinyang.src.transformers.Transformer import IfElseBlock, Transformer, CodeBlock, Context, Environment
 from yinyang.src.transformers.Util import type_smt2c, normalize_var_name
 from yinyang.src.parsing.Ast import Term
 from yinyang.src.parsing.Types import (
@@ -12,6 +34,26 @@ from yinyang.src.parsing.Types import (
 global_text = ""
 
 class CCodeBlock(CodeBlock):
+
+    def stmt_init_bool(self, identifier, assignee):
+        return "int %s = %s;" % (identifier, assignee)
+
+    def stmt_assign(self, identifier, assignee):
+        return "%s = %s;" % (identifier, assignee)
+    
+    def stmt_init_var(self, identifier, assignee) -> str:
+        if self.args.real_support:
+            return "double %s = %s;" % (identifier, assignee)
+        else:
+            return "long %s = %s;" % (identifier, assignee)
+
+    def block_if_then_else(self, condition, truevalue, falsevalue):
+        ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, truevalue, falsevalue, self.identifier)
+        self.update_with(ifelseblock)
+        self.assignee = ifelseblock.identifier
+    
+    def stmt_negation(self, identifier) -> str:
+        return "! %s" % (identifier)
 
     def __init__(self, tmpid: int, env: Environment, context: Context, args, expression, identifier=None):
         super().__init__(tmpid, args, identifier)
@@ -415,25 +457,8 @@ class CImpliesBlock(CCodeBlock):
         return "".join(self.statements)
 
 
-class CIfElseBlock(CCodeBlock):
-
-    def __init__(self, tmpid: int, env: Environment, context: Context, args, condition, truevalue, falsevalue, identifier=None):
-        self.condition = condition
-        self.truevalue = truevalue
-        self.falsevalue = falsevalue
-        super().__init__(tmpid, env, context, args, identifier)
-    
-    def init_block(self):
-        if self.args.real_support:
-            self.statements.append("double %s = %s;" % (self.identifier, self.falsevalue))
-        else:
-            self.statements.append("long %s = %s;" % (self.identifier, self.falsevalue))
-        self.statements.append("if (%s) {" % self.condition)
-        self.statements.append("%s = %s;" % (self.identifier, self.truevalue))
-        self.statements.append("}")
-
-    def __str__(self):
-        return "\n".join(self.statements)
+class CIfElseBlock(IfElseBlock, CCodeBlock):
+    pass
 
 class CContext(Context):
     

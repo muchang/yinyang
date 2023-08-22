@@ -1,3 +1,25 @@
+# MIT License
+#
+# Copyright (c) [2020 - 2021] The yinyang authors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import copy
 
 from yinyang.src.transformers.Transformer import Transformer, CodeBlock, Context, Environment
@@ -13,10 +35,33 @@ global_text = ""
 
 class DafnyCodeBlock(CodeBlock):
 
+    def stmt_init_bool(self, identifier, assignee):
+        return "var %s := %s;" % (identifier, assignee)
+
+    def stmt_init_var(self, identifier, assignee):
+        return "var %s := %s;" % (identifier, assignee)
+
+    def stmt_assign(self, identifier, assignee):
+        return "%s := %s;" % (identifier, assignee)
+    
+    def block_if_then_else(self, condition, truevalue, falsevalue):
+        return "if %s then %s else %s" % (condition, truevalue, falsevalue)
+
+    def block_implication(self):
+        assignee = ""
+        for subterm in self.expression.subterms:
+            implication = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            self.update_with(implication)
+            assignee += str(implication.identifier) + " ==> "
+        return assignee[:-5]
+
+    def stmt_negation(self, identifier) -> str:
+        return "! %s" % (identifier)
+
     def __init__(self, tmpid: int, env: Environment, context: Context, args, expression, identifier=None):
         super().__init__(tmpid, args, identifier)
         self.env = env
-        self.context = context = copy.deepcopy(context)
+        self.context = copy.deepcopy(context)
         self.expression = expression
         self.statements = []
         self.assignee = ""

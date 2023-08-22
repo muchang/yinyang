@@ -513,6 +513,7 @@ def LabeledTerm(label, subterms):
 
 
 class Term:
+    subterms: list
     def __init__(
         self,
         name=None,
