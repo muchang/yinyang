@@ -45,7 +45,7 @@ class CPAchecker:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 shell=False,
-                env={"JAVA":"/zdata/chengyu/dafny_testing/cpachecker/jdk-17.0.2/bin/java","PATH":os.environ['PATH']}
+                env={"JAVA":"/zdata/chengyu/dafny_testing/tools/cpachecker/jdk-17.0.2/bin/java","PATH":os.environ['PATH']}
             )
 
         except subprocess.TimeoutExpired as te:

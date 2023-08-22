@@ -25,7 +25,7 @@ class CCodeBlock(CodeBlock):
             if self.args.real_support:
                 self.statements.append("double %s = %s;" % (self.identifier, self.assignee))
             else:
-                self.statements.append("int %s = %s;" % (self.identifier, self.assignee))
+                self.statements.append("long %s = %s;" % (self.identifier, self.assignee))
 
     def init_block(self):
 
@@ -100,31 +100,13 @@ class CCodeBlock(CodeBlock):
             self.assignee = "- %s" % (unary_minus.identifier)
         
         elif self.expression.op == MINUS and len(self.expression.subterms) > 1:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     minus = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(minus)
-            #     self.assignee += str(minus.identifier) + " - "
-            # self.assignee = self.assignee[:-3]
-            self.arith_chain_with(self.expression.subterms, "-")
+            self.arith_chain_with("-")
         
         elif self.expression.op == PLUS:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     plus = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(plus)
-            #     self.assignee += str(plus.identifier) + " + "
-            # self.assignee = self.assignee[:-3]
-            self.arith_chain_with(self.expression.subterms, "+")
+            self.arith_chain_with("+")
 
         elif self.expression.op == MULTIPLY:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     multiply = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(multiply)
-            #     self.assignee += str(multiply.identifier) + " * "
-            # self.assignee = self.assignee[:-3]
-            self.arith_chain_with(self.expression.subterms, "*")
+            self.arith_chain_with("*")
 
         elif self.expression.op == ABS:
             abs = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -138,51 +120,27 @@ class CCodeBlock(CodeBlock):
             self.assignee = ifelseblock.identifier
 
         elif self.expression.op == GTE:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     gte = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(gte)
-            #     self.assignee += str(gte.identifier) + " >= "
-            # self.assignee = self.assignee[:-4]
             if len(self.expression.subterms) == 1:
                 raise Exception("LTE with one subterm")
-            self.arith_chain_with(self.expression.subterms, ">=")
+            self.bool_chain_with(">=")
 
         elif self.expression.op == GT:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     gt = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(gt)
-            #     self.assignee += str(gt.identifier) + " > "
-            # self.assignee = self.assignee[:-3]
-            self.arith_chain_with(self.expression.subterms, ">")
+            self.bool_chain_with(">")
 
         elif self.expression.op == LTE:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     lte = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(lte)
-            #     self.assignee += str(lte.identifier) + " <= "
-            # self.assignee = self.assignee[:-4]
             if len(self.expression.subterms) == 1:
                 raise Exception("LTE with one subterm")
-            self.arith_chain_with(self.expression.subterms, "<=")
+            self.bool_chain_with("<=")
         
         elif self.expression.op == LT:
-            # self.assignee = ""
-            # for subterm in self.expression.subterms:
-            #     lt = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            #     self.update_with(lt)
-            #     self.assignee += str(lt.identifier) + " < "
-            # self.assignee = self.assignee[:-3]
-            self.arith_chain_with(self.expression.subterms, "<")
+            self.bool_chain_with("<")
         
         elif self.expression.op == DIV:
             self.assignee = ""
             # free variable for division by zero
             free_var = "div_%s" % self.tmpid
             self.tmpid += 1
-            self.env.div_vars[free_var] = "int"
+            self.env.div_vars[free_var] = "long"
             # first subterm is the dividend
             condition = "true && "
             div = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -206,7 +164,7 @@ class CCodeBlock(CodeBlock):
             # free variable for division by zero
             free_var = "mod_%s" % self.tmpid
             self.tmpid += 1
-            self.env.div_vars[free_var] = "int"
+            self.env.div_vars[free_var] = "long"
             # first subterm is the dividend
             condition = "true && "
             mod = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -262,7 +220,7 @@ class CCodeBlock(CodeBlock):
                     if self.args.real_support:
                         self.statements.append("double %s = %s;" % (letvar, letterm.identifier))
                     else:
-                        self.statements.append("int %s = %s;" % (letvar, letterm.identifier))
+                        self.statements.append("long %s = %s;" % (letvar, letterm.identifier))
             letblock = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             self.update_with(letblock)
             self.assignee = letblock.identifier
@@ -307,14 +265,14 @@ class CCodeBlock(CodeBlock):
         self.env = codeblock.env
         self.tmpid = codeblock.tmpid
 
-    def arith_chain_with(self, subterms, symbol):
+    def arith_chain_with(self, symbol):
         self.assignee = ""
         identifier = "tmp_"+str(self.tmpid)
         self.tmpid += 1
         if self.args.real_support:
-            self.statements.append("double %s[%s];" % (identifier, len(subterms)))
+            self.statements.append("double %s[%s];" % (identifier, len(self.expression.subterms)))
         else:
-            self.statements.append("int %s[%s];" % (identifier, len(subterms)))
+            self.statements.append("long %s[%s];" % (identifier, len(self.expression.subterms)))
         index = 0
         for subterm in self.expression.subterms:
             codeblock = CCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
@@ -323,6 +281,21 @@ class CCodeBlock(CodeBlock):
             self.assignee += "%s[%s]" % (identifier, index) + " " + symbol + " "
             index += 1
         self.assignee = self.assignee[:-(len(symbol)+2)]
+        return
+
+    def bool_chain_with(self, symbol):
+        self.assignee = ""
+        equal_identifiers = []
+        for subterm in self.expression.subterms:
+            equal = CCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            self.update_with(equal)
+            equal_identifiers.append(equal.identifier)
+        combinations = []
+        for i in range(len(equal_identifiers)):
+            for j in range(i+1, len(equal_identifiers)):
+                combo = "(" + str(equal_identifiers[i]) + " " + symbol + " " + str(equal_identifiers[j]) + ")"
+                combinations.append(combo)
+        self.assignee = " && ".join(combinations)
         return
     
 class CAssertBlock(CCodeBlock):
@@ -454,7 +427,7 @@ class CIfElseBlock(CCodeBlock):
         if self.args.real_support:
             self.statements.append("double %s = %s;" % (self.identifier, self.falsevalue))
         else:
-            self.statements.append("int %s = %s;" % (self.identifier, self.falsevalue))
+            self.statements.append("long %s = %s;" % (self.identifier, self.falsevalue))
         self.statements.append("if (%s) {" % self.condition)
         self.statements.append("%s = %s;" % (self.identifier, self.truevalue))
         self.statements.append("}")

@@ -455,6 +455,12 @@ class CFuzzer(Fuzzer):
                     )
                     log_segfault_trigger(self.args, path, iteration)
                     return True
+            elif "Parsing failed" in checker_stderr + checker_stdout:
+                path = self.report(
+                        script, transformer, "compilation_error", checker_cli, checker_stdout, checker_stderr
+                    )
+                log_segfault_trigger(self.args, path, iteration)
+                return True
             else:
                 result = checker.grep_result(checker_stdout+checker_stderr)
                 if not oracle.equals(result):

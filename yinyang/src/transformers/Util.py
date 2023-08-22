@@ -10,9 +10,9 @@ def type_smt2dafny(smt_type):
 
 def type_smt2c(smt_type):
     if smt_type == "Int":
-        return "int"
+        return "long"
     elif smt_type == "Real":
-        return "float"
+        return "double"
     elif smt_type == "Bool":
         return "bool"
     else:
