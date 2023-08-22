@@ -143,7 +143,7 @@ def add_opfuzz_args(parser, rootpath, current_dir):
     parser.add_argument(
         "-i",
         "--iterations",
-        default=300,
+        default=1,
         metavar="<N>",
         type=int,
     )
@@ -260,6 +260,7 @@ def build_dafnyfuzz_parser(current_dir, usage):
         add_opfuzz_args(parser, ROOTPATH, current_dir)
     elif args.mutation_engine == "yinyang":
         add_yinyang_args(parser, ROOTPATH, current_dir)
+    args = parser.parse_args()
 
     return parser
 
