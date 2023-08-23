@@ -514,6 +514,7 @@ def LabeledTerm(label, subterms):
 
 class Term:
     subterms: list
+    var_binders: list
     def __init__(
         self,
         name=None,

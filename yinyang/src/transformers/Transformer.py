@@ -104,6 +104,14 @@ class CodeBlock(ABC):
         
         if self.assignee == "":
             self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
+        
+    @abstractmethod
+    def bool_true(self) -> str:
+        assert(0)
+    
+    @abstractmethod
+    def bool_false(self) -> str:
+        assert(0)
     
     @abstractmethod
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
@@ -130,8 +138,13 @@ class CodeBlock(ABC):
         assert(0)
     
     @abstractmethod
-    def stmts_if(self, condition:str, tstatements:list, fstatements:list) -> list:
+    def stmts_if_else(self, condition:str, tstatements:list, fstatements:list) -> list:
         assert(0)
+    
+    @abstractmethod
+    def create_codeblock(self, tmpid, env, context, args, expression: Term, identifier=None) -> 'CodeBlock':
+        assert(0)
+
     
     def init_block(self):
 
@@ -173,9 +186,26 @@ class IfElseBlock(CodeBlock):
 
     def init_block(self):
         self.statements.append(self.stmt_init_var(self.identifier, self.falsevalue))
-        self.statements.append(self.stmts_if(self.condition, [self.stmt_assign(self.identifier, self.truevalue)], []))
+        self.statements.extend(self.stmts_if_else(self.condition, [self.stmt_assign(self.identifier, self.truevalue)], []))
 
+class ImpliesBlock(CodeBlock):
 
+    def init_block(self):
+
+        assert self.expression.op == IMPLIES
+
+        if not self.customizedID:
+            self.statements.append(self.stmt_init_bool(self.identifier, self.bool_true()))
+        condition = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+        self.update_with(condition)
+        
+        if len(self.expression.subterms) == 1:
+            tstatement = self.stmt_assign(self.identifier, self.bool_true())
+            fstatement = self.stmt_assign(self.identifier, self.bool_false())
+            self.statements.extend(self.stmts_if_else(condition.identifier, [tstatement], [fstatement]))
+        else:
+            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="=>", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+            self.statements.extend(self.stmts_if_else(condition.identifier, subblock.statements, []))
 
     
         

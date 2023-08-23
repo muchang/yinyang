@@ -22,7 +22,10 @@
 
 import copy
 
-from yinyang.src.transformers.Transformer import IfElseBlock, Transformer, CodeBlock, Context, Environment
+from yinyang.src.transformers.Transformer import (
+    Transformer, CodeBlock, Context, Environment,
+    IfElseBlock, ImpliesBlock
+)
 from yinyang.src.transformers.Util import type_smt2c, normalize_var_name
 from yinyang.src.parsing.Ast import Term
 from yinyang.src.parsing.Types import (
@@ -35,39 +38,50 @@ global_text = ""
 
 class CCodeBlock(CodeBlock):
 
-    def stmt_init_bool(self, identifier, assignee):
+    def bool_true(self) -> str:
+        return "true"
+    
+    def bool_false(self) -> str:
+        return "false"
+
+    def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         return "int %s = %s;" % (identifier, assignee)
 
-    def stmt_assign(self, identifier, assignee):
+    def stmt_init_var(self, identifier:str, assignee:str) -> str:
         return "%s = %s;" % (identifier, assignee)
     
-    def stmt_init_var(self, identifier, assignee) -> str:
+    def stmt_assign(self, identifier:str, assignee:str) -> str:
         if self.args.real_support:
             return "double %s = %s;" % (identifier, assignee)
         else:
             return "long %s = %s;" % (identifier, assignee)
 
-    def block_if_then_else(self, condition, truevalue, falsevalue):
+    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> str:
         ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, truevalue, falsevalue, self.identifier)
         self.update_with(ifelseblock)
-        self.assignee = ifelseblock.identifier
+        return ifelseblock.identifier
     
-    def stmt_negation(self, identifier) -> str:
+    def block_implication(self) -> str:
+        implitesblock = CImpliesBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+        self.update_with(implitesblock)
+        return implitesblock.identifier
+    
+    def stmt_negation(self, identifier:str) -> str:
         return "! %s" % (identifier)
 
-    def __init__(self, tmpid: int, env: Environment, context: Context, args, expression, identifier=None):
-        super().__init__(tmpid, args, identifier)
-        self.env = env
-        self.context = context
-        self.expression = expression
-        self.statements = []
-        self.assignee = ""
-        self.init_block()
-        if self.assignee != "":
-            if self.args.real_support:
-                self.statements.append("double %s = %s;" % (self.identifier, self.assignee))
-            else:
-                self.statements.append("long %s = %s;" % (self.identifier, self.assignee))
+    def stmts_if_else(self, condition:str, tstatements:list, fstatements:list) -> list:
+        statements = []
+        statements.append("if (%s) {" % condition)
+        statements.extend(tstatements)
+        statements.append("}")
+        if len(fstatements) > 0:
+            statements.append("else {")
+            statements.extend(fstatements)
+            statements.append("}")
+        return statements
+
+    def create_codeblock(self, tmpid, env, context, args, expression: Term, identifier=None) -> CodeBlock:
+        return CCodeBlock(tmpid, env, context, args, expression, identifier)
 
     def init_block(self):
 
@@ -432,32 +446,10 @@ class CXORBlock(CCodeBlock):
             self.update_with(subblock)
         self.statements.append("}")
 
-class CImpliesBlock(CCodeBlock):
-    
-    def init_block(self):
-        assert self.expression.op == IMPLIES
-        if not self.customizedID:
-            self.statements.append("bool %s = true;" % self.identifier)
-        condition = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-        self.update_with(condition)
-        context = copy.deepcopy(self.context)
-        self.statements.append("if (%s) {" % condition.identifier)
-        if len(self.expression.subterms) == 1:
-            self.statements.append("%s = true;" % self.identifier)
-        else:
-            subblock = CImpliesBlock(self.tmpid, self.env, context, self.args, Term(op="=>", subterms=self.expression.subterms[1:]), identifier=self.identifier)
-            self.update_with(subblock)
-        self.statements.append("}")
-        if len(self.expression.subterms) == 1:
-            self.statements.append("else {")
-            self.statements.append("%s = false;" % self.identifier)
-            self.statements.append("}")
-    
-    def __str__(self):
-        return "".join(self.statements)
-
-
 class CIfElseBlock(IfElseBlock, CCodeBlock):
+    pass
+
+class CImpliesBlock(ImpliesBlock, CCodeBlock):
     pass
 
 class CContext(Context):

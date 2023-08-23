@@ -35,19 +35,25 @@ global_text = ""
 
 class DafnyCodeBlock(CodeBlock):
 
-    def stmt_init_bool(self, identifier, assignee):
+    def bool_true(self) -> str:
+        return "true"
+    
+    def bool_false(self) -> str:
+        return "false"
+
+    def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         return "var %s := %s;" % (identifier, assignee)
 
-    def stmt_init_var(self, identifier, assignee):
+    def stmt_init_var(self, identifier:str, assignee:str) -> str:
         return "var %s := %s;" % (identifier, assignee)
 
-    def stmt_assign(self, identifier, assignee):
+    def stmt_assign(self, identifier:str, assignee:str) -> str:
         return "%s := %s;" % (identifier, assignee)
     
-    def block_if_then_else(self, condition, truevalue, falsevalue):
+    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> str:
         return "if %s then %s else %s" % (condition, truevalue, falsevalue)
 
-    def block_implication(self):
+    def block_implication(self) -> str:
         assignee = ""
         for subterm in self.expression.subterms:
             implication = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
@@ -55,19 +61,22 @@ class DafnyCodeBlock(CodeBlock):
             assignee += str(implication.identifier) + " ==> "
         return assignee[:-5]
 
-    def stmt_negation(self, identifier) -> str:
+    def stmt_negation(self, identifier:str) -> str:
         return "! %s" % (identifier)
 
-    def __init__(self, tmpid: int, env: Environment, context: Context, args, expression, identifier=None):
-        super().__init__(tmpid, args, identifier)
-        self.env = env
-        self.context = copy.deepcopy(context)
-        self.expression = expression
-        self.statements = []
-        self.assignee = ""
-        self.init_block()
-        if self.assignee != "":
-            self.statements.append("var %s := %s;" % (self.identifier, self.assignee))
+    def stmts_if_else(self, condition:str, tstatements:list, fstatements:list) -> list:
+        statements = []
+        statements.append("if (%s) {" % condition)
+        statements.extend(tstatements)
+        statements.append("}")
+        if len(fstatements) > 0:
+            statements.append("else {")
+            statements.extend(fstatements)
+            statements.append("}")
+        return statements
+
+    def create_codeblock(self, tmpid, env, context, args, expression: Term, identifier=None) -> CodeBlock:
+        return DafnyCodeBlock(tmpid, env, context, args, expression, identifier)
 
     def init_block(self):
 
