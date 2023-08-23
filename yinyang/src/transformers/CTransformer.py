@@ -43,6 +43,18 @@ class CCodeBlock(CodeBlock):
     
     def bool_false(self) -> str:
         return "false"
+    
+    def op_equal(self) -> str:
+        return " == "
+    
+    def op_distinct(self) -> str:
+        return " != "
+
+    def op_bool_and(self) -> str:
+        return " && "
+    
+    def op_bool_or(self) -> str:
+        return " || "
 
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         return "int %s = %s;" % (identifier, assignee)
@@ -55,6 +67,12 @@ class CCodeBlock(CodeBlock):
             return "double %s = %s;" % (identifier, assignee)
         else:
             return "long %s = %s;" % (identifier, assignee)
+    
+    def stmt_equal_chain(self, identifiers:list) -> str:
+        return super().stmt_equal_chain(identifiers)
+    
+    def stmt_distinct_chain(self, identifiers: list) -> str:
+        return super().stmt_distinct_chain(identifiers)
 
     def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> str:
         ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, truevalue, falsevalue, self.identifier)
@@ -97,7 +115,6 @@ class CCodeBlock(CodeBlock):
             self.update_with(condition)
             self.update_with(branch1)
             self.update_with(branch2)
-            
             
             ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition.identifier, branch1.identifier, branch2.identifier, self.identifier)
             self.update_with(ifelseblock)

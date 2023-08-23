@@ -41,6 +41,18 @@ class DafnyCodeBlock(CodeBlock):
     def bool_false(self) -> str:
         return "false"
 
+    def op_equal(self) -> str:
+        return " == "
+    
+    def op_distinct(self) -> str:
+        return " != "
+
+    def op_bool_and(self) -> str:
+        return " && "
+    
+    def op_bool_or(self) -> str:
+        return " || "
+
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         return "var %s := %s;" % (identifier, assignee)
 
@@ -49,6 +61,12 @@ class DafnyCodeBlock(CodeBlock):
 
     def stmt_assign(self, identifier:str, assignee:str) -> str:
         return "%s := %s;" % (identifier, assignee)
+    
+    def stmt_equal_chain(self, identifiers:list) -> str:
+        return " == ".join(identifiers)
+
+    def stmt_distinct_chain(self, identifiers: list) -> str:
+        return super().stmt_distinct_chain(identifiers)
     
     def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> str:
         return "if %s then %s else %s" % (condition, truevalue, falsevalue)

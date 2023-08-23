@@ -112,6 +112,22 @@ class CodeBlock(ABC):
     @abstractmethod
     def bool_false(self) -> str:
         assert(0)
+
+    @abstractmethod
+    def op_equal(self) -> str:
+        assert(0)
+    
+    @abstractmethod
+    def op_distinct(self) -> str:
+        assert(0)
+
+    @abstractmethod
+    def op_bool_and(self) -> str:
+        assert(0)
+    
+    @abstractmethod
+    def op_bool_or(self) -> str:
+        assert(0)
     
     @abstractmethod
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
@@ -142,6 +158,24 @@ class CodeBlock(ABC):
         assert(0)
     
     @abstractmethod
+    def stmt_equal_chain(self, identifiers:list) -> str:
+        combinations = []
+        for i in range(len(identifiers)):
+            for j in range(i+1, len(identifiers)):
+                combo = "(%s %s %s)" % (identifiers[i], self.op_equal, identifiers[j]) 
+                combinations.append(combo)
+        return "%s" % self.op_bool_and().join(combinations)
+    
+    @abstractmethod
+    def stmt_distinct_chain(self, identifiers:list) -> str:
+        combinations = []
+        for i in range(len(identifiers)):
+            for j in range(i+1, len(identifiers)):
+                combo = "(%s %s %s)" % (identifiers[i], self.op_distinct, identifiers[j]) 
+                combinations.append(combo)
+        return "%s" % self.op_bool_and().join(combinations)
+    
+    @abstractmethod
     def create_codeblock(self, tmpid, env, context, args, expression: Term, identifier=None) -> 'CodeBlock':
         assert(0)
 
@@ -169,6 +203,29 @@ class CodeBlock(ABC):
         elif self.expression.op == IMPLIES:
 
             self.assignee = self.block_implication()
+        
+        elif self.expression.op == EQUAL:
+
+            equal_identifiers = []
+            for subterm in self.expression.subterms:
+                equal = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
+                self.update_with(equal)
+                equal_identifiers.append(equal.identifier)
+            
+            self.assignee = self.stmt_equal_chain(equal_identifiers)
+        
+        elif self.expression.op == DISTINCT:
+
+            distinct_identifiers = []
+            for subterm in self.expression.subterms:
+                distinct = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
+                self.update_with(distinct)
+                distinct_identifiers.append(distinct.identifier)
+            
+            self.assignee = self.stmt_distinct_chain(distinct_identifiers)
+                
+            
+
 
 
     def update_with(self, codeblock):
@@ -198,7 +255,7 @@ class ImpliesBlock(CodeBlock):
             self.statements.append(self.stmt_init_bool(self.identifier, self.bool_true()))
         condition = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.update_with(condition)
-        
+
         if len(self.expression.subterms) == 1:
             tstatement = self.stmt_assign(self.identifier, self.bool_true())
             fstatement = self.stmt_assign(self.identifier, self.bool_false())
