@@ -53,11 +53,47 @@ class DafnyCodeBlock(CodeBlock):
     def op_bool_or(self) -> str:
         return " || "
 
+    def op_bool_lt(self) -> str:
+        return super().op_bool_lt()
+    
+    def op_bool_gt(self) -> str:
+        return super().op_bool_gt()
+
+    def op_bool_lte(self) -> str:
+        return super().op_bool_lte()
+    
+    def op_bool_gte(self) -> str:
+        return super().op_bool_gte()
+
+    def op_idx_array(self, array, idx) -> str:
+        return "%s[%s]" % (array, idx)
+
+    def num_zero(self) -> str:
+        return super().num_zero()
+
+    def arith_plus(self) -> str:
+        return super().arith_plus()
+    
+    def arith_minus(self) -> str:
+        return super().arith_minus()
+    
+    def arith_mul(self) -> str:
+        return super().arith_mul()
+    
+    def arith_div(self) -> str:
+        return super().arith_div()
+
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         return "var %s := %s;" % (identifier, assignee)
 
     def stmt_init_var(self, identifier:str, assignee:str) -> str:
         return "var %s := %s;" % (identifier, assignee)
+
+    def stmt_init_array(self, identifier:str, length:int) -> str:
+        if self.args.real_support:
+            return "var %s := new real[%s];" % (identifier, length)
+        else:
+            return "var %s := new int[%s];" % (identifier, length)
 
     def stmt_assign(self, identifier:str, assignee:str) -> str:
         return "%s := %s;" % (identifier, assignee)

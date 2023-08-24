@@ -130,6 +130,49 @@ class CodeBlock(ABC):
         assert(0)
     
     @abstractmethod
+    def op_bool_lt(self) -> str:
+        return "<"
+    
+    @abstractmethod
+    def op_bool_gt(self) -> str:
+        return ">"
+
+    @abstractmethod
+    def op_bool_lte(self) -> str:
+        return "<="
+
+    @abstractmethod
+    def op_bool_gte(self) -> str:
+        return ">="
+
+    @abstractmethod
+    def op_idx_array(self, array, idx) -> str:
+        return "%s[%s]" % (array, idx)
+
+    @abstractmethod
+    def num_zero(self) -> str:
+        if self.args.real_support:
+            return "0.0"
+        else:
+            return "0"
+
+    @abstractmethod
+    def arith_plus(self) -> str:
+        return " + "
+    
+    @abstractmethod
+    def arith_minus(self) -> str:
+        return " - "
+    
+    @abstractmethod
+    def arith_mul(self) -> str:
+        return " * "
+
+    @abstractmethod
+    def arith_div(self) -> str:
+        return " / "
+    
+    @abstractmethod
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         assert(0)
     
@@ -139,6 +182,10 @@ class CodeBlock(ABC):
     
     @abstractmethod
     def stmt_assign(self, identifier:str, assignee:str) -> str:
+        assert(0)
+
+    @abstractmethod
+    def stmt_init_array(self, identifier:str, length:int) -> str:
         assert(0)
     
     @abstractmethod
@@ -223,10 +270,62 @@ class CodeBlock(ABC):
                 distinct_identifiers.append(distinct.identifier)
             
             self.assignee = self.stmt_distinct_chain(distinct_identifiers)
-                
+        
+        elif UNARY_MINUS and len(self.expression.subterms) == 1:
+
+            unary_minus = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+            self.update_with(unary_minus)
+            self.assignee = "(%s %s)" % (self.arith_minus(), unary_minus.identifier)
+        
+        elif self.expression.op == MINUS and len(self.expression.subterms) > 1:
+
+            self.assignee = self.arith_chain_with(self.expression.subterms, self.arith_minus())
+
+        elif self.expression.op == PLUS:
+
+            self.assignee = self.arith_chain_with(self.expression.subterms, self.arith_plus())
+        
+        elif self.expression.op == MULTIPLY:
+
+            self.assignee = self.arith_chain_with(self.expression.subterms, self.arith_mul())
+
+        elif self.expression.op == ABS:
+
+            abs = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+            self.update_with(abs)
+            self.assignee = self.block_if_then_else("(%s %s %s)" % (abs.identifier, self.op_bool_lt(), self.num_zero()), "(%s %s)" % (self.arith_minus(), abs.identifier), abs.identifier)
+        
+        elif self.expression.op == GTE:
             
+            self.assignee = self.arith_chain_with(self.expression.subterms, self.op_bool_gte())
+        
+        elif self.expression.op == GT:
+
+            self.assignee = self.arith_chain_with(self.expression.subterms, self.op_bool_gt())
+
+        elif self.expression.op == LTE:
+
+            self.assignee = self.arith_chain_with(self.expression.subterms, self.op_bool_lte())
+
+        elif self.expression.op == LT:
+
+            self.assignee = self.arith_chain_with(self.expression.subterms, self.op_bool_lt())
 
 
+    def arith_chain_with(self, subterms, op):
+
+        self.assignee = ""
+        identifier = "tmp_%s" % self.tmpid
+        self.tmpid += 1
+        self.stmt_init_array(identifier, len(subterms))
+        
+        elements = []
+        for i, subterm in enumerate(subterms):
+            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
+            self.update_with(subblock)
+            self.statements.append(self.stmt_assign(self.op_idx_array(identifier, i), subblock.identifier))
+            elements.append(self.op_idx_array(identifier, i))
+        return "%s" % op.join(elements)
 
     def update_with(self, codeblock):
         self.statements.extend(codeblock.statements)
