@@ -24,7 +24,7 @@ import copy
 
 from yinyang.src.transformers.Transformer import (
     Transformer, CodeBlock, Context, Environment,
-    IfElseBlock, ImpliesBlock
+    IfElseBlock, ImpliesBlock, Tuple
 )
 from yinyang.src.transformers.Util import type_smt2c, normalize_var_name
 from yinyang.src.parsing.Ast import Term
@@ -71,8 +71,17 @@ class CCodeBlock(CodeBlock):
     def op_idx_array(self, array, idx) -> str:
         return "%s[%s]" % (array, idx)
 
+    def type_int(self) -> str:
+        return "long"
+    
+    def type_real(self) -> str:
+        return "double"
+
     def num_zero(self) -> str:
         return super().num_zero()
+    
+    def num_real(self, num) -> str:
+        return super().num_real(num)
 
     def arith_plus(self) -> str:
         return super().arith_plus()
@@ -85,21 +94,24 @@ class CCodeBlock(CodeBlock):
     
     def arith_div(self) -> str:
         return super().arith_div()
+    
+    def arith_mod(self) -> str:
+        return super().arith_mod()
 
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         return "int %s = %s;" % (identifier, assignee)
 
     def stmt_init_var(self, identifier:str, assignee:str) -> str:
         if self.args.real_support:
-            return "double %s = %s;" % (identifier, assignee)
+            return "%s %s = %s;" % (self.type_real(),identifier, assignee)
         else:
-            return "long %s = %s;" % (identifier, assignee)
+            return "%s %s = %s;" % (self.type_int(), identifier, assignee)
 
     def stmt_init_array(self, identifier:str, length:int) -> str:
         if self.args.real_support:
-            return "double %s[%s];" % (identifier, len(self.expression.subterms))
+            return "%s %s[%s];" % (self.type_real(), identifier, len(self.expression.subterms))
         else:
-            return "long %s[%s];" % (identifier, len(self.expression.subterms))
+            return "%s %s[%s];" % (self.type_int(), identifier, len(self.expression.subterms))
     
     def stmt_assign(self, identifier:str, assignee:str) -> str:
         return "%s = %s;" % (identifier, assignee)
@@ -109,19 +121,24 @@ class CCodeBlock(CodeBlock):
     
     def stmt_distinct_chain(self, identifiers: list) -> str:
         return super().stmt_distinct_chain(identifiers)
-
-    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> str:
-        ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, truevalue, falsevalue, self.identifier)
-        self.update_with(ifelseblock)
-        return ifelseblock.identifier
-    
-    def block_implication(self) -> str:
-        implitesblock = CImpliesBlock(self.tmpid, self.env, self.context, self.args, self.expression)
-        self.update_with(implitesblock)
-        return implitesblock.identifier
     
     def stmt_negation(self, identifier:str) -> str:
         return "! %s" % (identifier)
+
+    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list, str]:
+        ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, truevalue, falsevalue, self.identifier)
+        return ifelseblock.statements, ifelseblock.identifier
+    
+    def block_implication(self) -> Tuple[list, str]:
+        implitesblock = CImpliesBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+        return implitesblock.statements, implitesblock.identifier
+
+    def block_and(self, condition:str, statements:list) -> Tuple[list, str]:
+        andblock = CAndBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+        return andblock.statements, andblock.identifier
+
+    def stmts_while(self, condition:str, statements:list) -> list:
+        return ["while (%s) {" % condition] + statements + ["}"]
 
     def stmts_if_else(self, condition:str, tstatements:list, fstatements:list) -> list:
         statements = []
@@ -413,27 +430,27 @@ class CAssertBlock(CCodeBlock):
         self.statements.append("assert (! %s);" % self.identifier)
         return "\n".join(self.statements)
     
-class CAndBlock(CCodeBlock):
+# class CAndBlock(CCodeBlock):
 
-    def init_block(self):
-        assert self.expression.op == AND
-        if not self.customizedID:
-            self.statements.append("bool %s = false;" % self.identifier)
-        condition = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-        self.update_with(condition)
-        context = copy.deepcopy(self.context)
-        self.statements.append("while (%s) {" % condition.identifier)
+#     def init_block(self):
+#         assert self.expression.op == AND
+#         if not self.customizedID:
+#             self.statements.append("bool %s = false;" % self.identifier)
+#         condition = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+#         self.update_with(condition)
+#         context = copy.deepcopy(self.context)
+#         self.statements.append("while (%s) {" % condition.identifier)
 
-        if len(self.expression.subterms) == 1:
-            self.statements.append("%s = true;" % self.identifier)
-        else:
-            subblock = CAndBlock(self.tmpid, self.env, context, self.args, Term(op="and", subterms=self.expression.subterms[1:]), identifier=self.identifier)
-            self.update_with(subblock)
-        self.statements.append("break;")
-        self.statements.append("}")
+#         if len(self.expression.subterms) == 1:
+#             self.statements.append("%s = true;" % self.identifier)
+#         else:
+#             subblock = CAndBlock(self.tmpid, self.env, context, self.args, Term(op="and", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+#             self.update_with(subblock)
+#         self.statements.append("break;")
+#         self.statements.append("}")
     
-    def __str__(self):
-        return "".join(self.statements)
+#     def __str__(self):
+#         return "".join(self.statements)
     
 class COrBlock(CCodeBlock):
     
@@ -503,6 +520,9 @@ class CIfElseBlock(IfElseBlock, CCodeBlock):
     pass
 
 class CImpliesBlock(ImpliesBlock, CCodeBlock):
+    pass
+
+class CAndBlock(AndBlock, CCodeBlock):
     pass
 
 class CContext(Context):

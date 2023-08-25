@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 from copy import deepcopy
+from typing import Tuple
 from argparse import Namespace
 from abc import ABC, abstractmethod
 
@@ -41,9 +42,18 @@ class Transformer:
         self.args = args
     
     def trans(self):
-        pass      
+        pass    
+
+class TmpID:
+    def __init__(self, tmpid=0):
+        self.tmpid = tmpid
+
+    def increase(self):
+        self.tmpid += 1
+        return self.tmpid
 
 class Context:
+
     def __init__(self, context=None):
         if context is None:
             self.free_vars = {}
@@ -60,6 +70,7 @@ class Context:
         self.defined_vars.update(context.defined_vars)
         
 class Environment:
+
     def __init__(self):
         self.methods = []
         self.global_vars = {}
@@ -75,7 +86,7 @@ class Environment:
 
 class CodeBlock(ABC):
 
-    tmpid: int
+    tmpid: TmpID
     args: Namespace
     env: Environment
     context: Context
@@ -83,7 +94,7 @@ class CodeBlock(ABC):
     statements: list
     assignee: str
 
-    def __init__(self, tmpid, env, context, args, expression: Term, identifier=None):
+    def __init__(self, tmpid: TmpID, env: Environment, context: Context, args: Namespace, expression: Term, identifier=None):
         self.tmpid = tmpid
         self.args = args
         self.env = env
@@ -95,7 +106,7 @@ class CodeBlock(ABC):
         if identifier is None:
             self.customizedID = False
             self.identifier = "tmp_%s" % self.tmpid
-            self.tmpid += 1
+            self.tmpid.increase()
         else:
             self.customizedID = True
             self.identifier = normalize_var_name(identifier)
@@ -150,11 +161,27 @@ class CodeBlock(ABC):
         return "%s[%s]" % (array, idx)
 
     @abstractmethod
+    def type_int(self) -> str:
+        assert(0)
+
+    @abstractmethod
+    def type_real(self) -> str:
+        assert(0)
+
+    @abstractmethod
     def num_zero(self) -> str:
         if self.args.real_support:
             return "0.0"
         else:
             return "0"
+    
+    @abstractmethod
+    def num_real(self, num) -> str:
+        num = str(num)
+        if "." not in num:
+            return "%s.0" % num
+        else:
+            return num
 
     @abstractmethod
     def arith_plus(self) -> str:
@@ -173,6 +200,10 @@ class CodeBlock(ABC):
         return " / "
     
     @abstractmethod
+    def arith_mod(self) -> str:
+        return " % "
+    
+    @abstractmethod
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         assert(0)
     
@@ -187,21 +218,38 @@ class CodeBlock(ABC):
     @abstractmethod
     def stmt_init_array(self, identifier:str, length:int) -> str:
         assert(0)
-    
-    @abstractmethod
-    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> str:
-        assert(0)
-    
-    @abstractmethod
-    def block_implication(self) -> str:
-        assert(0)
-    
+
     @abstractmethod
     def stmt_negation(self, identifier:str) -> str:
         assert(0)
     
+    
+    @abstractmethod
+    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list[str], str]:
+        assert(0)
+    
+    @abstractmethod
+    def block_implication(self) -> Tuple[list[str], str]:
+        assert(0)
+    
+    @abstractmethod
+    def block_and(self) -> Tuple[list[str], str]:
+        assert(0)
+    
+    @abstractmethod
+    def block_or(self) -> Tuple[list[str], str]:
+        assert(0)
+    
+    @abstractmethod
+    def block_xor(self) -> Tuple[list[str], str]:
+        assert(0)
+    
     @abstractmethod
     def stmts_if_else(self, condition:str, tstatements:list, fstatements:list) -> list:
+        assert(0)
+    
+    @abstractmethod 
+    def stmts_while(self, condition:str, statements:list) -> list:
         assert(0)
     
     @abstractmethod
@@ -226,37 +274,39 @@ class CodeBlock(ABC):
     def create_codeblock(self, tmpid, env, context, args, expression: Term, identifier=None) -> 'CodeBlock':
         assert(0)
 
-    
     def init_block(self):
 
         if self.expression.op == ITE:
 
             condition = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-            branch1 =  self.__class__(condition.tmpid, self.env, self.context, self.args, self.expression.subterms[1])
-            branch2 =  self.__class__(branch1.tmpid, self.env, self.context, self.args, self.expression.subterms[2])
+            branch1 = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[1])
+            branch2 = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[2])
 
-            self.update_with(condition)
-            self.update_with(branch1)
-            self.update_with(branch2)
+            self.statements.extend(condition.statements)
+            self.statements.extend(branch1.statements)
+            self.statements.extend(branch2.statements)
 
-            self.assignee = self.block_if_then_else(condition.identifier, branch1.identifier, branch2.identifier)
+            statements, self.assignee = self.block_if_then_else(condition.identifier, branch1.identifier, branch2.identifier)
+            self.statements.extend(statements)
+
     
         elif self.expression.op == NOT:
             
             negation = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-            self.update_with(negation)
+            self.statements.extend(negation.statements)
             self.assignee = self.stmt_assign(self.identifier, negation.identifier)
         
         elif self.expression.op == IMPLIES:
 
-            self.assignee = self.block_implication()
+            statements, self.assignee = self.block_implication()
+            self.statements.extend(statements)
         
         elif self.expression.op == EQUAL:
 
             equal_identifiers = []
             for subterm in self.expression.subterms:
                 equal = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
-                self.update_with(equal)
+                self.statements.extend(equal.statements)
                 equal_identifiers.append(equal.identifier)
             
             self.assignee = self.stmt_equal_chain(equal_identifiers)
@@ -266,7 +316,7 @@ class CodeBlock(ABC):
             distinct_identifiers = []
             for subterm in self.expression.subterms:
                 distinct = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
-                self.update_with(distinct)
+                self.statements.extend(distinct.statements)
                 distinct_identifiers.append(distinct.identifier)
             
             self.assignee = self.stmt_distinct_chain(distinct_identifiers)
@@ -274,67 +324,151 @@ class CodeBlock(ABC):
         elif UNARY_MINUS and len(self.expression.subterms) == 1:
 
             unary_minus = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-            self.update_with(unary_minus)
+            self.statements.extend(unary_minus.statements)
             self.assignee = "(%s %s)" % (self.arith_minus(), unary_minus.identifier)
         
         elif self.expression.op == MINUS and len(self.expression.subterms) > 1:
 
-            self.assignee = self.arith_chain_with(self.expression.subterms, self.arith_minus())
+            self.assignee = self.arith_chain_with(self.arith_minus())
 
         elif self.expression.op == PLUS:
 
-            self.assignee = self.arith_chain_with(self.expression.subterms, self.arith_plus())
+            self.assignee = self.arith_chain_with(self.arith_plus())
         
         elif self.expression.op == MULTIPLY:
 
-            self.assignee = self.arith_chain_with(self.expression.subterms, self.arith_mul())
+            self.assignee = self.arith_chain_with(self.arith_mul())
 
         elif self.expression.op == ABS:
 
             abs = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-            self.update_with(abs)
-            self.assignee = self.block_if_then_else("(%s %s %s)" % (abs.identifier, self.op_bool_lt(), self.num_zero()), "(%s %s)" % (self.arith_minus(), abs.identifier), abs.identifier)
+            self.statements.extend(abs.statements)
+
+            statements, self.assignee = self.block_if_then_else("(%s %s %s)" % (abs.identifier, self.op_bool_lt(), self.num_zero()), "(%s %s)" % (self.arith_minus(), abs.identifier), abs.identifier)
+            self.statements.extend(statements)
         
         elif self.expression.op == GTE:
             
-            self.assignee = self.arith_chain_with(self.expression.subterms, self.op_bool_gte())
+            self.assignee = self.arith_chain_with(self.op_bool_gte())
         
         elif self.expression.op == GT:
 
-            self.assignee = self.arith_chain_with(self.expression.subterms, self.op_bool_gt())
+            self.assignee = self.arith_chain_with(self.op_bool_gt())
 
         elif self.expression.op == LTE:
 
-            self.assignee = self.arith_chain_with(self.expression.subterms, self.op_bool_lte())
+            self.assignee = self.arith_chain_with(self.op_bool_lte())
 
         elif self.expression.op == LT:
 
-            self.assignee = self.arith_chain_with(self.expression.subterms, self.op_bool_lt())
+            self.assignee = self.arith_chain_with(self.op_bool_lt())
+        
+        elif self.expression.op == DIV:
+            
+            self.assignee = self.division_with(self.arith_div())
+        
+        elif self.expression.op == MOD:
+
+            self.assignee = self.division_with(self.arith_mod())
+            
+        elif self.expression.op == REAL_DIV:
+
+            self.assignee = self.division_with(self.arith_div())
+        
+        elif self.expression.let_terms != None:
+
+            for let_term_idx in range(len(self.expression.let_terms)):
+
+                letterm = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.let_terms[let_term_idx])
+                self.statements.extend(letterm.statements)
+                letvar = normalize_var_name(str(self.expression.var_binders[let_term_idx]))
+                if letvar in self.context.let_vars:
+                    self.statements.append(self.stmt_assign(letvar, letterm.identifier))
+                else:
+                    self.statements.append(self.stmt_init_var(letvar, letterm.identifier))
+                self.context.let_vars[letvar] = letterm.identifier
+
+            letblock = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+            self.statements.extend(letblock.statements)
+            self.assignee = letblock.identifier
+        
+        elif self.expression.op == AND:
+            if len(self.expression.subterms) == 0:
+                raise Exception("AND with no subterms")
+            statements, self.assignee = self.block_and()
+            self.statements.extend(statements)
+
+        elif self.expression.op == OR:
+            if len(self.expression.subterms) == 0:
+                raise Exception("OR with no subterms")
+            statements, self.assignee = self.block_or()
+            self.statements.extend(statements)
+        
+        elif self.expression.op == XOR:
+            if len(self.expression.subterms) == 0:
+                raise Exception("XOR with no subterms")
+            statements, self.assignee = self.block_xor()
+            self.statements.extend(statements)
+
+        elif self.expression.op == None:
+            
+            if not str.isdigit(str(self.expression).replace(".", "")):
+                self.assignee = normalize_var_name(str(self.expression))
+            elif self.args.real_support:
+                self.assignee = self.num_real(str(self.expression))
+            else:
+                self.assignee = str(self.expression)
+
+    def division_with (self, symbol):
+
+        # free variable for division by zero
+            if str(self.expression) not in self.env.div_exps:
+                free_var = "div_%s" % self.tmpid
+                self.tmpid.increase()
+                self.env.div_vars[free_var] = self.type_int()
+                self.env.div_exps[str(self.expression)] = free_var
+            else:
+                free_var = self.env.div_exps[str(self.expression)]
+            
+            # first subterm is the dividend
+            condition = [self.bool_true()]
+            dividend = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+            self.statements.extend(dividend.statements)
+
+            # other subterms are the divisors
+            divisors = [dividend.identifier]
+            for subterm in self.expression.subterms[1:]:
+                divisor = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
+                self.statements.extend(divisor.statements)
+                divisors.append(divisor.identifier)
+                condition.append("(%s %s %s)" % (divisor.identifier, self.op_distinct(), self.num_zero()))
+            
+            condition = self.op_bool_and().join(condition)
+            expression = symbol.join(divisors)
+
+            statements, assignee = self.block_if_then_else(condition, expression, free_var)
+            self.statements.extend(statements)
+            return assignee
 
 
-    def arith_chain_with(self, subterms, op):
+    def arith_chain_with(self, op):
 
         self.assignee = ""
         identifier = "tmp_%s" % self.tmpid
-        self.tmpid += 1
-        self.stmt_init_array(identifier, len(subterms))
+        self.tmpid.increase()
+        self.stmt_init_array(identifier, len(self.expression.subterms))
         
         elements = []
-        for i, subterm in enumerate(subterms):
+        for i, subterm in enumerate(self.expression.subterms):
             subblock = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
-            self.update_with(subblock)
+            self.statements.extend(subblock.statements)
             self.statements.append(self.stmt_assign(self.op_idx_array(identifier, i), subblock.identifier))
             elements.append(self.op_idx_array(identifier, i))
         return "%s" % op.join(elements)
 
-    def update_with(self, codeblock):
-        self.statements.extend(codeblock.statements)
-        self.env = codeblock.env
-        self.tmpid = codeblock.tmpid
-
 class IfElseBlock(CodeBlock):
 
-    def __init__(self, tmpid: int, env: Environment, context: Context, args, condition, truevalue, falsevalue, identifier=""):
+    def __init__(self, tmpid: TmpID, env: Environment, context: Context, args, condition, truevalue, falsevalue, identifier=""):
         self.condition = condition
         self.truevalue = truevalue
         self.falsevalue = falsevalue
@@ -353,7 +487,7 @@ class ImpliesBlock(CodeBlock):
         if not self.customizedID:
             self.statements.append(self.stmt_init_bool(self.identifier, self.bool_true()))
         condition = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-        self.update_with(condition)
+        self.statements.extend(condition.statements)
 
         if len(self.expression.subterms) == 1:
             tstatement = self.stmt_assign(self.identifier, self.bool_true())
@@ -363,5 +497,83 @@ class ImpliesBlock(CodeBlock):
             subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="=>", subterms=self.expression.subterms[1:]), identifier=self.identifier)
             self.statements.extend(self.stmts_if_else(condition.identifier, subblock.statements, []))
 
-    
+class AndBlock(CodeBlock):
+
+    def init_block(self):
+
+        assert self.expression.op == AND
+        if not self.customizedID:
+            self.statements.append(self.stmt_init_bool(self.identifier, self.bool_false()))
+        condition = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+        self.statements.extend(condition.statements)
+
+        statements = []
+        if len(self.expression.subterms) == 1:
+            statements.append(self.stmt_assign(self.identifier, self.bool_true()))
+        else:
+            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="and", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+            statements.extend(subblock.statements)
         
+        self.statements.extend(self.stmts_while(condition.identifier, statements))
+
+class OrBlock(CodeBlock):
+
+    def init_block(self):
+        
+        assert self.expression.op == OR
+        if not self.customizedID:
+            self.statements.append(self.stmt_init_bool(self.identifier, self.bool_false()))
+        condition = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+        self.statements.extend(condition.statements)
+
+        statements = []
+        if len(self.expression.subterms) != 1:
+            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="or", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+            statements.extend(subblock.statements)
+        
+        self.statements.extend(self.stmts_if_else(condition.identifier, [self.stmt_assign(self.identifier, self.bool_true())], statements))
+
+class XorBlock(CodeBlock):
+
+    def __init__(self, tmpid, env, context, args, expression, identifier=None, truth=True):
+        self.truth = truth
+        super().__init__(tmpid, env, context, args, expression, identifier)
+
+    def get_truth(self, negated=False):
+        if self.truth == True and negated == True:
+            truth = self.bool_true()
+        elif self.truth == False and negated == False:
+            truth = self.bool_true()
+        elif self.truth == False and negated == True:
+            truth = self.bool_false()
+        else:
+            truth = self.bool_false()
+        return truth
+
+    def init_block(self):
+        
+        assert self.expression.op == XOR
+        if not self.customizedID:
+            self.statements.append(self.stmt_init_bool(self.identifier, self.bool_false()))
+        condition = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+        self.statements.extend(condition.statements)
+
+        tstatements = []
+        if len(self.expression.subterms) == 1:
+            tstatements.append(self.stmt_assign(self.identifier, self.get_truth(True)))
+        else:
+            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=not self.truth)
+            tstatements.extend(subblock.statements)
+        
+        fstatements = []
+        if len(self.expression.subterms) == 1:
+            self.statements.append(self.stmt_assign(self.identifier, self.get_truth(False)))
+        else:
+            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=self.truth)
+            fstatements.extend(subblock.statements)
+        
+        self.statements.extend(self.stmts_if_else(condition.identifier, tstatements, fstatements))
+        
+
+
+            

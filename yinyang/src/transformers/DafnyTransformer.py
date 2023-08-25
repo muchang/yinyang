@@ -22,7 +22,10 @@
 
 import copy
 
-from yinyang.src.transformers.Transformer import Transformer, CodeBlock, Context, Environment
+from yinyang.src.transformers.Transformer import (
+    Transformer, CodeBlock, Context, Environment,
+    IfElseBlock, ImpliesBlock, AndBlock, Tuple
+)
 from yinyang.src.transformers.Util import type_smt2dafny, normalize_var_name
 from yinyang.src.parsing.Ast import Term
 from yinyang.src.parsing.Types import (
@@ -68,8 +71,17 @@ class DafnyCodeBlock(CodeBlock):
     def op_idx_array(self, array, idx) -> str:
         return "%s[%s]" % (array, idx)
 
+    def type_int(self) -> str:
+        return "int"
+    
+    def type_real(self) -> str:
+        return "real"
+
     def num_zero(self) -> str:
         return super().num_zero()
+    
+    def num_real(self, num) -> str:
+        return super().num_real(num)
 
     def arith_plus(self) -> str:
         return super().arith_plus()
@@ -83,6 +95,9 @@ class DafnyCodeBlock(CodeBlock):
     def arith_div(self) -> str:
         return super().arith_div()
 
+    def arith_mod(self) -> str:
+        return super().arith_mod()
+
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         return "var %s := %s;" % (identifier, assignee)
 
@@ -91,9 +106,9 @@ class DafnyCodeBlock(CodeBlock):
 
     def stmt_init_array(self, identifier:str, length:int) -> str:
         if self.args.real_support:
-            return "var %s := new real[%s];" % (identifier, length)
+            return "var %s := new %s[%s];" % (identifier, self.type_real(), length)
         else:
-            return "var %s := new int[%s];" % (identifier, length)
+            return "var %s := new %s[%s];" % (identifier, self.type_int(), length)
 
     def stmt_assign(self, identifier:str, assignee:str) -> str:
         return "%s := %s;" % (identifier, assignee)
@@ -104,19 +119,24 @@ class DafnyCodeBlock(CodeBlock):
     def stmt_distinct_chain(self, identifiers: list) -> str:
         return super().stmt_distinct_chain(identifiers)
     
-    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> str:
-        return "if %s then %s else %s" % (condition, truevalue, falsevalue)
-
-    def block_implication(self) -> str:
-        assignee = ""
-        for subterm in self.expression.subterms:
-            implication = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            self.update_with(implication)
-            assignee += str(implication.identifier) + " ==> "
-        return assignee[:-5]
-
     def stmt_negation(self, identifier:str) -> str:
         return "! %s" % (identifier)
+    
+    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list[str], str]:
+        return [], "if %s then %s else %s" % (condition, truevalue, falsevalue)
+
+    def block_implication(self) -> Tuple[list[str], str]:
+        assignee = ""
+        statements = []
+        for subterm in self.expression.subterms:
+            implication = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
+            statements.extend(implication.statements)
+            assignee += str(implication.identifier) + " ==> "
+        return statements, assignee[:-5]
+
+    def block_and(self) -> Tuple[list[str], str]:
+        andblock = DafnyAndBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+        return andblock.statements, andblock.identifier
 
     def stmts_if_else(self, condition:str, tstatements:list, fstatements:list) -> list:
         statements = []
@@ -128,6 +148,9 @@ class DafnyCodeBlock(CodeBlock):
             statements.extend(fstatements)
             statements.append("}")
         return statements
+    
+    def stmts_while(self, condition:str, statements:list) -> list:
+        return ["while (%s) {" % condition] + statements + ["}"]
 
     def create_codeblock(self, tmpid, env, context, args, expression: Term, identifier=None) -> CodeBlock:
         return DafnyCodeBlock(tmpid, env, context, args, expression, identifier)
@@ -374,31 +397,34 @@ class DafnyAssertBlock(DafnyCodeBlock):
     def __str__(self):
         self.statements.append("assert (! %s);" % self.identifier)
         return "\n".join(self.statements)
-    
-class DafnyAndBlock(DafnyCodeBlock):
 
-    def init_block(self):
-        assert self.expression.op == AND
-        if not self.customizedID:
-            self.statements.append("var %s := false;" % self.identifier)
-        tmpid = self.tmpid
-        condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-        self.update_with(condition)
-        context = copy.deepcopy(self.context)
-        self.statements.append("while (%s) {" % condition.identifier)
-
-        if len(self.expression.subterms) == 1:
-            self.statements.append("%s := true;" % self.identifier)
-        else:
-            if self.tmpid == 6:
-                print("here")
-            subblock = DafnyAndBlock(self.tmpid, self.env, context, self.args, Term(op="and", subterms=self.expression.subterms[1:]), identifier=self.identifier)
-            self.update_with(subblock)
-        self.statements.append("break;")
-        self.statements.append("}")
+class DafnyAndBlock(AndBlock, DafnyCodeBlock):
+    pass
     
-    def __str__(self):
-        return "".join(self.statements)
+# class DafnyAndBlock(DafnyCodeBlock):
+
+#     def init_block(self):
+#         assert self.expression.op == AND
+#         if not self.customizedID:
+#             self.statements.append("var %s := false;" % self.identifier)
+#         tmpid = self.tmpid
+#         condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+#         self.update_with(condition)
+#         context = copy.deepcopy(self.context)
+#         self.statements.append("while (%s) {" % condition.identifier)
+
+#         if len(self.expression.subterms) == 1:
+#             self.statements.append("%s := true;" % self.identifier)
+#         else:
+#             if self.tmpid == 6:
+#                 print("here")
+#             subblock = DafnyAndBlock(self.tmpid, self.env, context, self.args, Term(op="and", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+#             self.update_with(subblock)
+#         self.statements.append("break;")
+#         self.statements.append("}")
+    
+#     def __str__(self):
+#         return "".join(self.statements)
     
 class DafnyOrBlock(DafnyCodeBlock):
     
