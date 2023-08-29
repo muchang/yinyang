@@ -24,7 +24,7 @@ import copy
 
 from yinyang.src.transformers.Transformer import (
     Transformer, CodeBlock, Context, Environment,
-    IfElseBlock, ImpliesBlock, Tuple
+    IfElseBlock, ImpliesBlock, AndBlock, XorBlock, OrBlock, Tuple
 )
 from yinyang.src.transformers.Util import type_smt2c, normalize_var_name
 from yinyang.src.parsing.Ast import Term
@@ -124,6 +124,9 @@ class CCodeBlock(CodeBlock):
     
     def stmt_negation(self, identifier:str) -> str:
         return "! %s" % (identifier)
+    
+    def stmt_assert(self, identifier:str) -> str:
+        return "assert (! %s);" % (identifier)
 
     def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list, str]:
         ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, truevalue, falsevalue, self.identifier)
@@ -133,9 +136,17 @@ class CCodeBlock(CodeBlock):
         implitesblock = CImpliesBlock(self.tmpid, self.env, self.context, self.args, self.expression)
         return implitesblock.statements, implitesblock.identifier
 
-    def block_and(self, condition:str, statements:list) -> Tuple[list, str]:
+    def block_and(self) -> Tuple[list, str]:
         andblock = CAndBlock(self.tmpid, self.env, self.context, self.args, self.expression)
         return andblock.statements, andblock.identifier
+    
+    def block_or(self) -> Tuple[list, str]:
+        orblock = COrBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+        return orblock.statements, orblock.identifier
+    
+    def block_xor(self) -> Tuple[list, str]:
+        xorblock = CXorBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+        return xorblock.statements, xorblock.identifier
 
     def stmts_while(self, condition:str, statements:list) -> list:
         return ["while (%s) {" % condition] + statements + ["}"]
@@ -452,69 +463,69 @@ class CAssertBlock(CCodeBlock):
 #     def __str__(self):
 #         return "".join(self.statements)
     
-class COrBlock(CCodeBlock):
+# class COrBlock(CCodeBlock):
     
-    def init_block(self):
-        assert self.expression.op == OR
-        if not self.customizedID:
-            self.statements.append("bool %s = false;" % self.identifier)
-        condition = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-        self.update_with(condition)
-        self.statements.append("if (%s) {" % condition.identifier)
-        self.statements.append("%s = true;" % self.identifier)
-        self.statements.append("}")
+#     def init_block(self):
+#         assert self.expression.op == OR
+#         if not self.customizedID:
+#             self.statements.append("bool %s = false;" % self.identifier)
+#         condition = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+#         self.update_with(condition)
+#         self.statements.append("if (%s) {" % condition.identifier)
+#         self.statements.append("%s = true;" % self.identifier)
+#         self.statements.append("}")
 
-        context = copy.deepcopy(self.context)
-        if len(self.expression.subterms) != 1:
-            self.statements.append("else {")
-            subblock = COrBlock(self.tmpid, self.env, context, self.args, Term(op="or", subterms=self.expression.subterms[1:]), identifier=self.identifier)
-            self.update_with(subblock)
-            self.statements.append("}")
+#         context = copy.deepcopy(self.context)
+#         if len(self.expression.subterms) != 1:
+#             self.statements.append("else {")
+#             subblock = COrBlock(self.tmpid, self.env, context, self.args, Term(op="or", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+#             self.update_with(subblock)
+#             self.statements.append("}")
     
-    def __str__(self):
-        return "".join(self.statements)
+#     def __str__(self):
+#         return "".join(self.statements)
 
-class CXORBlock(CCodeBlock):
+# class CXORBlock(CCodeBlock):
 
-    def __init__(self, tmpid, env, context, args, expression, identifier=None, truth=True):
-        self.truth = truth
-        super().__init__(tmpid, env, context, args, expression, identifier)
+#     def __init__(self, tmpid, env, context, args, expression, identifier=None, truth=True):
+#         self.truth = truth
+#         super().__init__(tmpid, env, context, args, expression, identifier)
 
     
-    def get_truth(self, negated=False):
-        if self.truth == True and negated == True:
-            truth = "true"
-        elif self.truth == False and negated == False:
-            truth = "true"
-        elif self.truth == False and negated == True:
-            truth = "false"
-        else:
-            truth = "false"
-        return truth
+#     def get_truth(self, negated=False):
+#         if self.truth == True and negated == True:
+#             truth = "true"
+#         elif self.truth == False and negated == False:
+#             truth = "true"
+#         elif self.truth == False and negated == True:
+#             truth = "false"
+#         else:
+#             truth = "false"
+#         return truth
     
-    def init_block(self):
-        assert self.expression.op == XOR
-        if not self.customizedID:
-            self.statements.append("bool %s = false;" % self.identifier)
-        condition = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-        self.update_with(condition)
-        context = copy.deepcopy(self.context)
-        self.statements.append("if (%s) {" % condition.identifier)
-        if len(self.expression.subterms) == 1:
-            self.statements.append("%s = %s;" % (self.identifier, self.get_truth(True)))
-        else:
-            subblock = CXORBlock(self.tmpid, self.env, context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=not self.truth)
-            self.update_with(subblock)
-        self.statements.append("}")
+#     def init_block(self):
+#         assert self.expression.op == XOR
+#         if not self.customizedID:
+#             self.statements.append("bool %s = false;" % self.identifier)
+#         condition = CCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+#         self.update_with(condition)
+#         context = copy.deepcopy(self.context)
+#         self.statements.append("if (%s) {" % condition.identifier)
+#         if len(self.expression.subterms) == 1:
+#             self.statements.append("%s = %s;" % (self.identifier, self.get_truth(True)))
+#         else:
+#             subblock = CXORBlock(self.tmpid, self.env, context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=not self.truth)
+#             self.update_with(subblock)
+#         self.statements.append("}")
 
-        context = copy.deepcopy(self.context)
-        self.statements.append("else {")
-        if len(self.expression.subterms) == 1:
-            self.statements.append("%s = %s;" % (self.identifier, self.get_truth(False)))
-        else:
-            subblock = CXORBlock(self.tmpid, self.env, context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=self.truth)
-            self.update_with(subblock)
-        self.statements.append("}")
+#         context = copy.deepcopy(self.context)
+#         self.statements.append("else {")
+#         if len(self.expression.subterms) == 1:
+#             self.statements.append("%s = %s;" % (self.identifier, self.get_truth(False)))
+#         else:
+#             subblock = CXORBlock(self.tmpid, self.env, context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=self.truth)
+#             self.update_with(subblock)
+#         self.statements.append("}")
 
 class CIfElseBlock(IfElseBlock, CCodeBlock):
     pass
@@ -523,6 +534,12 @@ class CImpliesBlock(ImpliesBlock, CCodeBlock):
     pass
 
 class CAndBlock(AndBlock, CCodeBlock):
+    pass
+
+class COrBlock(OrBlock, CCodeBlock):
+    pass
+
+class CXorBlock(XorBlock, CCodeBlock):
     pass
 
 class CContext(Context):

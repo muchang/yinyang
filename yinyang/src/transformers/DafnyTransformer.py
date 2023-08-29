@@ -24,7 +24,7 @@ import copy
 
 from yinyang.src.transformers.Transformer import (
     Transformer, CodeBlock, Context, Environment,
-    IfElseBlock, ImpliesBlock, AndBlock, Tuple
+    IfElseBlock, ImpliesBlock, AndBlock, OrBlock, XorBlock, Tuple
 )
 from yinyang.src.transformers.Util import type_smt2dafny, normalize_var_name
 from yinyang.src.parsing.Ast import Term
@@ -103,6 +103,9 @@ class DafnyCodeBlock(CodeBlock):
 
     def stmt_init_var(self, identifier:str, assignee:str) -> str:
         return "var %s := %s;" % (identifier, assignee)
+    
+    def stmt_assert(self, identifier:str) -> str:
+        return "assert (! %s);" % (identifier)
 
     def stmt_init_array(self, identifier:str, length:int) -> str:
         if self.args.real_support:
@@ -137,6 +140,14 @@ class DafnyCodeBlock(CodeBlock):
     def block_and(self) -> Tuple[list[str], str]:
         andblock = DafnyAndBlock(self.tmpid, self.env, self.context, self.args, self.expression)
         return andblock.statements, andblock.identifier
+    
+    def block_or(self) -> Tuple[list[str], str]:
+        orblock = DafnyOrBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+        return orblock.statements, orblock.identifier
+    
+    def block_xor(self) -> Tuple[list[str], str]:
+        xorblock = DafnyXorBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+        return xorblock.statements, xorblock.identifier
 
     def stmts_if_else(self, condition:str, tstatements:list, fstatements:list) -> list:
         statements = []
@@ -425,70 +436,76 @@ class DafnyAndBlock(AndBlock, DafnyCodeBlock):
     
 #     def __str__(self):
 #         return "".join(self.statements)
-    
-class DafnyOrBlock(DafnyCodeBlock):
-    
-    def init_block(self):
-        assert self.expression.op == OR
-        if not self.customizedID:
-            self.statements.append("var %s := false;" % self.identifier)
-        condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-        self.update_with(condition)
-        self.statements.append("if (%s) {" % condition.identifier)
-        self.statements.append("%s := true;" % self.identifier)
-        self.statements.append("}")
 
-        context = copy.deepcopy(self.context)
-        if len(self.expression.subterms) != 1:
-            self.statements.append("else {")
-            subblock = DafnyOrBlock(self.tmpid, self.env, context, self.args, Term(op="or", subterms=self.expression.subterms[1:]), identifier=self.identifier)
-            self.update_with(subblock)
-            self.statements.append("}")
+class DafnyOrBlock(OrBlock, DafnyCodeBlock):
+    pass
     
-    def __str__(self):
-        return "".join(self.statements)
+# class DafnyOrBlock(DafnyCodeBlock):
+    
+#     def init_block(self):
+#         assert self.expression.op == OR
+#         if not self.customizedID:
+#             self.statements.append("var %s := false;" % self.identifier)
+#         condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+#         self.update_with(condition)
+#         self.statements.append("if (%s) {" % condition.identifier)
+#         self.statements.append("%s := true;" % self.identifier)
+#         self.statements.append("}")
 
-class DafnyXORBlock(DafnyCodeBlock):
+#         context = copy.deepcopy(self.context)
+#         if len(self.expression.subterms) != 1:
+#             self.statements.append("else {")
+#             subblock = DafnyOrBlock(self.tmpid, self.env, context, self.args, Term(op="or", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+#             self.update_with(subblock)
+#             self.statements.append("}")
+    
+#     def __str__(self):
+#         return "".join(self.statements)
 
-    def __init__(self, tmpid, env, context, args, expression, identifier=None, truth=True):
-        self.truth = truth
-        super().__init__(tmpid, env, context, args, expression, identifier)
+class DafnyXorBlock(XorBlock, DafnyCodeBlock):
+    pass
+
+# class DafnyXORBlock(DafnyCodeBlock):
+
+#     def __init__(self, tmpid, env, context, args, expression, identifier=None, truth=True):
+#         self.truth = truth
+#         super().__init__(tmpid, env, context, args, expression, identifier)
 
     
-    def get_truth(self, negated=False):
-        if self.truth == True and negated == True:
-            truth = "true"
-        elif self.truth == False and negated == False:
-            truth = "true"
-        elif self.truth == False and negated == True:
-            truth = "false"
-        else:
-            truth = "false"
-        return truth
+#     def get_truth(self, negated=False):
+#         if self.truth == True and negated == True:
+#             truth = "true"
+#         elif self.truth == False and negated == False:
+#             truth = "true"
+#         elif self.truth == False and negated == True:
+#             truth = "false"
+#         else:
+#             truth = "false"
+#         return truth
     
-    def init_block(self):
-        assert self.expression.op == XOR
-        if not self.customizedID:
-            self.statements.append("var %s := false;" % self.identifier)
-        condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-        self.update_with(condition)
-        context = copy.deepcopy(self.context)
-        self.statements.append("if (%s) {" % condition.identifier)
-        if len(self.expression.subterms) == 1:
-            self.statements.append("%s := %s;" % (self.identifier, self.get_truth(True)))
-        else:
-            subblock = DafnyXORBlock(self.tmpid, self.env, context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=not self.truth)
-            self.update_with(subblock)
-        self.statements.append("}")
+#     def init_block(self):
+#         assert self.expression.op == XOR
+#         if not self.customizedID:
+#             self.statements.append("var %s := false;" % self.identifier)
+#         condition = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+#         self.update_with(condition)
+#         context = copy.deepcopy(self.context)
+#         self.statements.append("if (%s) {" % condition.identifier)
+#         if len(self.expression.subterms) == 1:
+#             self.statements.append("%s := %s;" % (self.identifier, self.get_truth(True)))
+#         else:
+#             subblock = DafnyXORBlock(self.tmpid, self.env, context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=not self.truth)
+#             self.update_with(subblock)
+#         self.statements.append("}")
 
-        context = copy.deepcopy(self.context)
-        self.statements.append("else {")
-        if len(self.expression.subterms) == 1:
-            self.statements.append("%s := %s;" % (self.identifier, self.get_truth(False)))
-        else:
-            subblock = DafnyXORBlock(self.tmpid, self.env, context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=self.truth)
-            self.update_with(subblock)
-        self.statements.append("}")
+#         context = copy.deepcopy(self.context)
+#         self.statements.append("else {")
+#         if len(self.expression.subterms) == 1:
+#             self.statements.append("%s := %s;" % (self.identifier, self.get_truth(False)))
+#         else:
+#             subblock = DafnyXORBlock(self.tmpid, self.env, context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=self.truth)
+#             self.update_with(subblock)
+#         self.statements.append("}")
 
 class DafnyContext(Context):
     

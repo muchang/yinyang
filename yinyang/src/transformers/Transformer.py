@@ -222,7 +222,10 @@ class CodeBlock(ABC):
     @abstractmethod
     def stmt_negation(self, identifier:str) -> str:
         assert(0)
-    
+
+    @abstractmethod
+    def stmt_assert(self, identifier:str) -> str:
+        assert(0)
     
     @abstractmethod
     def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list[str], str]:
