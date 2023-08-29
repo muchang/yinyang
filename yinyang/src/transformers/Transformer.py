@@ -349,19 +349,19 @@ class CodeBlock(ABC):
         
         elif self.expression.op == GTE:
             
-            self.assignee = self.arith_chain_with(self.op_bool_gte())
+            self.assignee = self.bool_chain_with(self.op_bool_gte())
         
         elif self.expression.op == GT:
 
-            self.assignee = self.arith_chain_with(self.op_bool_gt())
+            self.assignee = self.bool_chain_with(self.op_bool_gt())
 
         elif self.expression.op == LTE:
 
-            self.assignee = self.arith_chain_with(self.op_bool_lte())
+            self.assignee = self.bool_chain_with(self.op_bool_lte())
 
         elif self.expression.op == LT:
 
-            self.assignee = self.arith_chain_with(self.op_bool_lt())
+            self.assignee = self.bool_chain_with(self.op_bool_lt())
         
         elif self.expression.op == DIV:
             
@@ -465,6 +465,23 @@ class CodeBlock(ABC):
             self.statements.append(self.stmt_assign(self.op_idx_array(identifier, i), subblock.identifier))
             elements.append(self.op_idx_array(identifier, i))
         return "%s" % op.join(elements)
+
+    def bool_chain_with(self, op):
+
+        self.assignee = ""
+        equal_identifiers = []
+        for subterm in self.expression.subterms:
+            equal = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
+            self.statements.extend(equal.statements)
+            equal_identifiers.append(equal.identifier)
+
+        combinations = []
+        for i in range(len(equal_identifiers)):
+            for j in range(i+1, len(equal_identifiers)):
+                combo = "(%s %s %s)" % (equal_identifiers[i], op, equal_identifiers[j])
+
+        return "%s".join(combinations) % self.op_bool_and()
+
 
 class IfElseBlock(CodeBlock):
 
