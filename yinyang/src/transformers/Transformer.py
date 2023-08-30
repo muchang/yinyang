@@ -33,26 +33,15 @@ from yinyang.src.parsing.Types import (
 from yinyang.src.parsing.Ast import Term
 from yinyang.src.transformers.Util import normalize_var_name
 
-class Transformer:
-    def __init__(self, formula, args):
-        self.formula = formula
-        self.assert_cmds = self.formula[0].assert_cmd
-        self.free_variables = self.formula[1]
-        self.defined_variables = self.formula[2]
-        self.args = args
-    
-    def trans(self):
-        pass    
-
 class TmpID:
+
     def __init__(self, tmpid=0):
-        self.tmpid = tmpid
+        self.num = tmpid
 
     def increase(self):
-        self.tmpid += 1
-        return self.tmpid
+        self.num += 1
 
-class Context:
+class Context(ABC):
 
     def __init__(self, context=None):
         if context is None:
@@ -68,6 +57,14 @@ class Context:
         self.free_vars.update(context.free_vars)
         self.let_vars.update(context.let_vars)
         self.defined_vars.update(context.defined_vars)
+
+    def get_free_vars_from(self, smt_variables):
+        for var in smt_variables:
+            self.free_vars[var] = smt_variables[var]
+        
+    def get_defined_vars_from(self, smt_variables):
+        for var in smt_variables:
+            self.free_vars[var] = smt_variables[var][0]
         
 class Environment:
 
@@ -94,27 +91,14 @@ class CodeBlock(ABC):
     statements: list
     assignee: str
 
-    def __init__(self, tmpid: TmpID, env: Environment, context: Context, args: Namespace, expression: Term, identifier=None):
-        self.tmpid = tmpid
-        self.args = args
-        self.env = env
-        self.context = deepcopy(context)
-        self.expression = expression
-        self.statements = []
-        self.assignee = ""
-
-        if identifier is None:
-            self.customizedID = False
-            self.identifier = "tmp_%s" % self.tmpid
-            self.tmpid.increase()
-        else:
-            self.customizedID = True
-            self.identifier = normalize_var_name(identifier)
-        
-        self.init_block()
-        
-        if self.assignee == "":
-            self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
+    
+    @abstractmethod
+    def left_bracket(self) -> str:
+        return "{"
+    
+    @abstractmethod
+    def right_bracket(self) -> str:
+        return "}"
         
     @abstractmethod
     def bool_true(self) -> str:
@@ -228,6 +212,10 @@ class CodeBlock(ABC):
         assert(0)
     
     @abstractmethod
+    def stmt_break(self) -> str:
+        assert(0)
+    
+    @abstractmethod
     def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list[str], str]:
         assert(0)
     
@@ -277,6 +265,29 @@ class CodeBlock(ABC):
     def create_codeblock(self, tmpid, env, context, args, expression: Term, identifier=None) -> 'CodeBlock':
         assert(0)
 
+    def __init__(self, tmpid: TmpID, env: Environment, context: Context, args: Namespace, expression: Term, identifier=None):
+
+        self.tmpid = tmpid
+        self.args = args
+        self.env = env
+        self.context = deepcopy(context)
+        self.expression = expression
+        self.statements = []
+        self.assignee = ""
+
+        if identifier is None:
+            self.customizedID = False
+            self.identifier = "tmp_%s" % self.tmpid.num
+            self.tmpid.increase()
+        else:
+            self.customizedID = True
+            self.identifier = normalize_var_name(identifier)
+        
+        self.init_block()
+        
+        if self.assignee != "":
+            self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
+
     def init_block(self):
 
         if self.expression.op == ITE:
@@ -297,7 +308,7 @@ class CodeBlock(ABC):
             
             negation = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             self.statements.extend(negation.statements)
-            self.assignee = self.stmt_assign(self.identifier, negation.identifier)
+            self.assignee = negation.identifier
         
         elif self.expression.op == IMPLIES:
 
@@ -324,7 +335,7 @@ class CodeBlock(ABC):
             
             self.assignee = self.stmt_distinct_chain(distinct_identifiers)
         
-        elif UNARY_MINUS and len(self.expression.subterms) == 1:
+        elif self.expression.op == UNARY_MINUS and len(self.expression.subterms) == 1:
 
             unary_minus = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             self.statements.extend(unary_minus.statements)
@@ -426,7 +437,7 @@ class CodeBlock(ABC):
 
         # free variable for division by zero
             if str(self.expression) not in self.env.div_exps:
-                free_var = "div_%s" % self.tmpid
+                free_var = "div_%s" % self.tmpid.num
                 self.tmpid.increase()
                 self.env.div_vars[free_var] = self.type_int()
                 self.env.div_exps[str(self.expression)] = free_var
@@ -457,9 +468,9 @@ class CodeBlock(ABC):
     def arith_chain_with(self, op):
 
         self.assignee = ""
-        identifier = "tmp_%s" % self.tmpid
+        identifier = "tmp_%s" % self.tmpid.num
         self.tmpid.increase()
-        self.stmt_init_array(identifier, len(self.expression.subterms))
+        self.statements.append(self.stmt_init_array(identifier, len(self.expression.subterms)))
         
         elements = []
         for i, subterm in enumerate(self.expression.subterms):
@@ -483,7 +494,7 @@ class CodeBlock(ABC):
             for j in range(i+1, len(equal_identifiers)):
                 combo = "(%s %s %s)" % (equal_identifiers[i], op, equal_identifiers[j])
 
-        return "%s".join(combinations) % self.op_bool_and()
+        return "%s" % self.op_bool_and().join(combinations) 
 
 
 class IfElseBlock(CodeBlock):
@@ -514,7 +525,7 @@ class ImpliesBlock(CodeBlock):
             fstatement = self.stmt_assign(self.identifier, self.bool_false())
             self.statements.extend(self.stmts_if_else(condition.identifier, [tstatement], [fstatement]))
         else:
-            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="=>", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+            subblock = self.__class__.__base__(self.tmpid, self.env, self.context, self.args, Term(op="=>", subterms=self.expression.subterms[1:]), identifier=self.identifier)
             self.statements.extend(self.stmts_if_else(condition.identifier, subblock.statements, []))
 
 class AndBlock(CodeBlock):
@@ -522,9 +533,10 @@ class AndBlock(CodeBlock):
     def init_block(self):
 
         assert self.expression.op == AND
+
         if not self.customizedID:
             self.statements.append(self.stmt_init_bool(self.identifier, self.bool_false()))
-        condition = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+        condition = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.statements.extend(condition.statements)
 
         statements = []
@@ -533,6 +545,7 @@ class AndBlock(CodeBlock):
         else:
             subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="and", subterms=self.expression.subterms[1:]), identifier=self.identifier)
             statements.extend(subblock.statements)
+        statements.append(self.stmt_break())
         
         self.statements.extend(self.stmts_while(condition.identifier, statements))
 
@@ -543,7 +556,7 @@ class OrBlock(CodeBlock):
         assert self.expression.op == OR
         if not self.customizedID:
             self.statements.append(self.stmt_init_bool(self.identifier, self.bool_false()))
-        condition = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+        condition = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.statements.extend(condition.statements)
 
         statements = []
@@ -575,7 +588,7 @@ class XorBlock(CodeBlock):
         assert self.expression.op == XOR
         if not self.customizedID:
             self.statements.append(self.stmt_init_bool(self.identifier, self.bool_false()))
-        condition = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+        condition = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
         self.statements.extend(condition.statements)
 
         tstatements = []
@@ -595,5 +608,60 @@ class XorBlock(CodeBlock):
         self.statements.extend(self.stmts_if_else(condition.identifier, tstatements, fstatements))
         
 
+class Transformer(CodeBlock):
+
+    @abstractmethod
+    def stmt_method_head(self) -> str:
+        assert(0)
+
+    @abstractmethod
+    def convert_type(self, type:str) -> str:
+        assert(0)
+
+    @abstractmethod
+    def stmts_file_head(self) -> list:
+        assert(0)
+
+    def __init__(self, formula, args: Namespace):
+
+        self.tmpid = TmpID()
+        self.args = args
+        self.name = "main"
+        self.assert_cmds = formula[0].assert_cmd
+        self.free_variables = formula[1]
+        self.defined_variables = formula[2]
+        self.context = Context()
+        self.env = Environment()
+        self.context.get_free_vars_from(self.free_variables)
+        self.context.get_defined_vars_from(self.defined_variables)
+
+        self.assert_methods = []
+        #TODO: add method support
+        for assert_cmd in self.assert_cmds:
+            method = self.__class__.__base__(self.tmpid, self.env, self.context, self.args, assert_cmd.term)
+            self.assert_methods.append(method)
+        
+        self.defined_assertions = []
+        for defined_var in self.defined_variables:
+            method = self.__class__.__base__(self.tmpid, self.env, self.context, self.args, defined_var)
+            self.defined_assertions.append((defined_var,method))
+        
+        assert_identifiers = []
+        self.statements = self.stmts_file_head()
+        self.statements.append(self.stmt_method_head()+self.left_bracket())
+        for assertion in self.defined_assertions:
+            self.statements.extend(assertion[1].statements)
+            self.statements.append(self.stmt_init_bool(assertion[0], assertion[1].identifier))
+        for method in self.assert_methods:
+            self.statements.extend(method.statements)
+            assert_identifiers.append(method.identifier)
+        self.statements.append(self.stmt_init_bool("oracle", self.op_bool_and().join(assert_identifiers)))
+        self.statements.append(self.stmt_assert(self.stmt_negation("oracle")))
+        self.statements.append(self.right_bracket())
+    
+    def __str__(self) -> str:
+        return "\n".join(self.statements)
+
+    
 
             
