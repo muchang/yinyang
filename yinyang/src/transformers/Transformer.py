@@ -248,7 +248,7 @@ class CodeBlock(ABC):
         combinations = []
         for i in range(len(identifiers)):
             for j in range(i+1, len(identifiers)):
-                combo = "(%s %s %s)" % (identifiers[i], self.op_equal, identifiers[j]) 
+                combo = "(%s %s %s)" % (identifiers[i], self.op_equal(), identifiers[j]) 
                 combinations.append(combo)
         return "%s" % self.op_bool_and().join(combinations)
     
@@ -257,7 +257,7 @@ class CodeBlock(ABC):
         combinations = []
         for i in range(len(identifiers)):
             for j in range(i+1, len(identifiers)):
-                combo = "(%s %s %s)" % (identifiers[i], self.op_distinct, identifiers[j]) 
+                combo = "(%s %s %s)" % (identifiers[i], self.op_distinct(), identifiers[j]) 
                 combinations.append(combo)
         return "%s" % self.op_bool_and().join(combinations)
     
@@ -270,7 +270,7 @@ class CodeBlock(ABC):
         self.tmpid = tmpid
         self.args = args
         self.env = env
-        self.context = deepcopy(context)
+        self.context = context
         self.expression = expression
         self.statements = []
         self.assignee = ""
@@ -286,7 +286,7 @@ class CodeBlock(ABC):
         self.init_block()
         
         if self.assignee != "":
-            self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
+            self.statements.append(self.stmt_init_var(self.identifier, self.assignee))
 
     def init_block(self):
 
@@ -393,7 +393,7 @@ class CodeBlock(ABC):
 
             for let_term_idx in range(len(self.expression.let_terms)):
 
-                letterm = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.let_terms[let_term_idx])
+                letterm = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.expression.let_terms[let_term_idx])
                 self.statements.extend(letterm.statements)
                 letvar = normalize_var_name(str(self.expression.var_binders[let_term_idx]))
                 if letvar in self.context.let_vars:
@@ -402,7 +402,7 @@ class CodeBlock(ABC):
                     self.statements.append(self.stmt_init_var(letvar, letterm.identifier))
                 self.context.let_vars[letvar] = letterm.identifier
 
-            letblock = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+            letblock = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             self.statements.extend(letblock.statements)
             self.assignee = letblock.identifier
         
@@ -492,14 +492,14 @@ class CodeBlock(ABC):
         combinations = []
         for i in range(len(equal_identifiers)):
             for j in range(i+1, len(equal_identifiers)):
-                combo = "(%s %s %s)" % (equal_identifiers[i], op, equal_identifiers[j])
+                combinations.append("(%s %s %s)" % (equal_identifiers[i], op, equal_identifiers[j]))
 
         return "%s" % self.op_bool_and().join(combinations) 
 
 
 class IfElseBlock(CodeBlock):
 
-    def __init__(self, tmpid: TmpID, env: Environment, context: Context, args, condition, truevalue, falsevalue, identifier=""):
+    def __init__(self, tmpid: TmpID, env: Environment, context: Context, args, condition, truevalue, falsevalue, identifier=None):
         self.condition = condition
         self.truevalue = truevalue
         self.falsevalue = falsevalue
@@ -638,12 +638,12 @@ class Transformer(CodeBlock):
         self.assert_methods = []
         #TODO: add method support
         for assert_cmd in self.assert_cmds:
-            method = self.__class__.__base__(self.tmpid, self.env, self.context, self.args, assert_cmd.term)
+            method = self.create_codeblock(self.tmpid, self.env, self.context, self.args, assert_cmd.term)
             self.assert_methods.append(method)
         
         self.defined_assertions = []
         for defined_var in self.defined_variables:
-            method = self.__class__.__base__(self.tmpid, self.env, self.context, self.args, defined_var)
+            method = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.defined_variables[defined_var][1])
             self.defined_assertions.append((defined_var,method))
         
         assert_identifiers = []
@@ -651,7 +651,7 @@ class Transformer(CodeBlock):
         self.statements.append(self.stmt_method_head()+self.left_bracket())
         for assertion in self.defined_assertions:
             self.statements.extend(assertion[1].statements)
-            self.statements.append(self.stmt_init_bool(assertion[0], assertion[1].identifier))
+            self.statements.append(self.stmt_assign(assertion[0], assertion[1].identifier))
         for method in self.assert_methods:
             self.statements.extend(method.statements)
             assert_identifiers.append(method.identifier)

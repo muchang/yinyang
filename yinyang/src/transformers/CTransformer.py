@@ -138,7 +138,7 @@ class CCodeBlock(CodeBlock):
         return "break;"
 
     def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list, str]:
-        ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, truevalue, falsevalue, self.identifier)
+        ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, truevalue, falsevalue)
         return ifelseblock.statements, ifelseblock.identifier
     
     def block_implication(self) -> Tuple[list, str]:
