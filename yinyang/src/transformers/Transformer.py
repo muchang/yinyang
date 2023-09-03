@@ -62,9 +62,9 @@ class Context(ABC):
         for var in smt_variables:
             self.free_vars[var] = smt_variables[var]
         
-    def get_defined_vars_from(self, smt_variables):
+    def exclude_defined_vars_by(self, smt_variables):
         for var in smt_variables:
-            self.free_vars[var] = smt_variables[var][0]
+            del self.free_vars[var]
         
 class Environment:
 
@@ -270,8 +270,11 @@ class CodeBlock(ABC):
         self.tmpid = tmpid
         self.args = args
         self.env = env
-        self.context = context
         self.expression = expression
+        if self.expression.let_terms != None:
+            self.context = Context(context)
+        else:
+            self.context = deepcopy(context)
         self.statements = []
         self.assignee = ""
 
@@ -308,7 +311,7 @@ class CodeBlock(ABC):
             
             negation = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             self.statements.extend(negation.statements)
-            self.assignee = negation.identifier
+            self.assignee = self.stmt_negation(negation.identifier)
         
         elif self.expression.op == IMPLIES:
 
@@ -436,33 +439,37 @@ class CodeBlock(ABC):
     def division_with (self, symbol):
 
         # free variable for division by zero
-            if str(self.expression) not in self.env.div_exps:
-                free_var = "div_%s" % self.tmpid.num
-                self.tmpid.increase()
-                self.env.div_vars[free_var] = self.type_int()
-                self.env.div_exps[str(self.expression)] = free_var
+        expression_prefix = str(" ".join(str(element) for element in self.expression.subterms[:-1]))
+        if expression_prefix not in self.env.div_exps:
+            free_var = "div_%s" % self.tmpid.num
+            self.tmpid.increase()
+            if self.args.real_support:
+                self.env.div_vars[free_var] = self.type_real()
             else:
-                free_var = self.env.div_exps[str(self.expression)]
-            
-            # first subterm is the dividend
-            condition = [self.bool_true()]
-            dividend = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
-            self.statements.extend(dividend.statements)
+                self.env.div_vars[free_var] = self.type_int()
+            self.env.div_exps[expression_prefix] = free_var
+        else:
+            free_var = self.env.div_exps[expression_prefix]
+        
+        # first subterm is the dividend
+        condition = [self.bool_true()]
+        dividend = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
+        self.statements.extend(dividend.statements)
 
-            # other subterms are the divisors
-            divisors = [dividend.identifier]
-            for subterm in self.expression.subterms[1:]:
-                divisor = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
-                self.statements.extend(divisor.statements)
-                divisors.append(divisor.identifier)
-                condition.append("(%s %s %s)" % (divisor.identifier, self.op_distinct(), self.num_zero()))
-            
-            condition = self.op_bool_and().join(condition)
-            expression = symbol.join(divisors)
+        # other subterms are the divisors
+        divisors = [dividend.identifier]
+        for subterm in self.expression.subterms[1:]:
+            divisor = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
+            self.statements.extend(divisor.statements)
+            divisors.append(divisor.identifier)
+            condition.append("(%s %s %s)" % (divisor.identifier, self.op_distinct(), self.num_zero()))
+        
+        condition = self.op_bool_and().join(condition)
+        expression = symbol.join(divisors)
 
-            statements, assignee = self.block_if_then_else(condition, expression, free_var)
-            self.statements.extend(statements)
-            return assignee
+        statements, assignee = self.block_if_then_else(condition, expression, free_var)
+        self.statements.extend(statements)
+        return assignee
 
 
     def arith_chain_with(self, op):
@@ -633,29 +640,32 @@ class Transformer(CodeBlock):
         self.context = Context()
         self.env = Environment()
         self.context.get_free_vars_from(self.free_variables)
-        self.context.get_defined_vars_from(self.defined_variables)
+        self.context.exclude_defined_vars_by(self.defined_variables)
 
-        self.assert_methods = []
+        self.assert_terms = []
         #TODO: add method support
         for assert_cmd in self.assert_cmds:
-            method = self.create_codeblock(self.tmpid, self.env, self.context, self.args, assert_cmd.term)
-            self.assert_methods.append(method)
+            self.assert_terms.append(assert_cmd.term)
+        
+        formula_term = Term(op="and", subterms=self.assert_terms)
+        formula = self.create_codeblock(self.tmpid, self.env, self.context, self.args, formula_term, identifier="oracle")
         
         self.defined_assertions = []
         for defined_var in self.defined_variables:
             method = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.defined_variables[defined_var][1])
-            self.defined_assertions.append((defined_var,method))
+            var_type = self.convert_type(self.defined_variables[defined_var][0])
+            self.defined_assertions.append((defined_var,method,var_type))
         
-        assert_identifiers = []
         self.statements = self.stmts_file_head()
         self.statements.append(self.stmt_method_head()+self.left_bracket())
         for assertion in self.defined_assertions:
             self.statements.extend(assertion[1].statements)
-            self.statements.append(self.stmt_assign(assertion[0], assertion[1].identifier))
-        for method in self.assert_methods:
-            self.statements.extend(method.statements)
-            assert_identifiers.append(method.identifier)
-        self.statements.append(self.stmt_init_bool("oracle", self.op_bool_and().join(assert_identifiers)))
+            if assertion[2] == "bool":
+                self.statements.append(self.stmt_init_bool(assertion[0], assertion[1].identifier))
+            else:    
+                self.statements.append(self.stmt_init_var(assertion[0], assertion[1].identifier))
+        
+        self.statements.extend(formula.statements)
         self.statements.append(self.stmt_assert(self.stmt_negation("oracle")))
         self.statements.append(self.right_bracket())
     
