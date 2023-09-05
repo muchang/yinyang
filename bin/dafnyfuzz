@@ -85,7 +85,17 @@ def main():
     else:
         args = run_checks(parser, "dafnyfuzz")
         # try:
-        fuzzer = CFuzzer(args, "dafnyfuzz")
+        if args.language == "dafny":
+            fuzzer = DafnyFuzzer(args, "dafnyfuzz")
+        elif args.language == "c":
+            fuzzer = CFuzzer(args, "dafnyfuzz")
+        else:
+            raise_runtime_error(
+                inspect.trace(),
+                sys.argv,
+                "dafnyfuzz: Language not supported",
+            )
+            exit(ERR_INTERNAL)
 
         def print_stats():
             fuzzer.statistic.printsum()

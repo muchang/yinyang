@@ -288,8 +288,38 @@ class CodeBlock(ABC):
         
         self.init_block()
         
+        #TODO: add type inference.
         if self.assignee != "":
-            self.statements.append(self.stmt_init_var(self.identifier, self.assignee))
+            if self.customizedID:
+                self.statements.append(self.stmt_assign(self.identifier, self.assignee))
+            elif self.expression.op == NOT or \
+               self.expression.op == IMPLIES or \
+               self.expression.op == EQUAL or \
+                self.expression.op == DISTINCT or \
+                self.expression.op == AND or \
+                self.expression.op == OR or \
+                self.expression.op == XOR:
+                self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
+            elif self.expression.op == None:
+                if self.assignee in self.context.free_vars:
+                    if self.context.free_vars[self.assignee] == self.type_real or self.context.free_vars[self.assignee] == self.type_int:
+                        self.statements.append(self.stmt_init_var(self.identifier, self.num_real(self.assignee)))
+                    else:
+                        self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
+                elif str.isdigit(str(self.assignee).replace(".", "")):
+                    self.statements.append(self.stmt_init_var(self.identifier, self.assignee))
+                elif self.assignee == self.bool_true() or self.assignee == self.bool_false():
+                    self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
+                elif self.expression.type == self.type_real() or self.expression.type == self.type_int():
+                    self.statements.append(self.stmt_init_var(self.identifier, self.num_real(self.assignee)))
+                elif self.expression.type == "Bool":
+                    self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
+                elif self.assignee in self.context.let_vars:
+                    self.statements.append(self.stmt_init_var(self.identifier, self.context.let_vars[self.assignee]))
+                else:
+                    self.statements.append(self.stmt_init_var(self.identifier, self.assignee))
+            else:
+                self.statements.append(self.stmt_init_var(self.identifier, self.assignee))
 
     def init_block(self):
 
@@ -531,8 +561,9 @@ class ImpliesBlock(CodeBlock):
             tstatement = self.stmt_assign(self.identifier, self.bool_true())
             fstatement = self.stmt_assign(self.identifier, self.bool_false())
             self.statements.extend(self.stmts_if_else(condition.identifier, [tstatement], [fstatement]))
+            self.assignee = ""
         else:
-            subblock = self.__class__.__base__(self.tmpid, self.env, self.context, self.args, Term(op="=>", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+            subblock = self.create_codeblock(self.tmpid, self.env, self.context, self.args, Term(op="=>", subterms=self.expression.subterms[1:]), identifier=self.identifier)
             self.statements.extend(self.stmts_if_else(condition.identifier, subblock.statements, []))
 
 class AndBlock(CodeBlock):
@@ -658,6 +689,7 @@ class Transformer(CodeBlock):
         
         self.statements = self.stmts_file_head()
         self.statements.append(self.stmt_method_head()+self.left_bracket())
+        self.statements.append(self.stmt_init_bool("oracle", self.bool_true()))
         for assertion in self.defined_assertions:
             self.statements.extend(assertion[1].statements)
             if assertion[2] == "bool":
