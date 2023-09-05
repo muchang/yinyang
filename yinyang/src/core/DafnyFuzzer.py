@@ -156,7 +156,6 @@ class DafnyFuzzer(Fuzzer):
 
             for i in range(self.args.iterations):
                 self.print_stats()
-                assert script is not None
                 if self.mutator is not None:
                     mutant, success, skip_seed = self.mutator.mutate()
                     self.generate_mutator(seed)

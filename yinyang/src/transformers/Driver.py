@@ -54,7 +54,7 @@ parser.add_argument(
     action="store_true"
 )
 parser.add_argument(
-    "-l",
+    "-lang",
     "--language",
     default="dafny",
     metavar="{dafny, c}",
