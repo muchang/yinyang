@@ -22,6 +22,7 @@
 
 import os
 import re
+import glob
 import copy
 import time
 import shutil
@@ -29,6 +30,10 @@ import random
 import signal
 import logging
 import pathlib
+import faulthandler
+faulthandler.enable()
+
+from yinyang.src.base.Utils import timeout_handler, TimeoutException
 
 from yinyang.src.core.Statistic import Statistic
 from yinyang.src.core.Solver import Solver, SolverQueryResult, SolverResult
@@ -76,6 +81,7 @@ MAX_TIMEOUTS = 32
 
 
 class Fuzzer:
+
     def __init__(self, args, strategy):
         self.args = args
         self.currentseeds = []
@@ -97,7 +103,7 @@ class Fuzzer:
             return None, None
 
         self.currentseeds.append(pathlib.Path(seed).stem)
-        script, glob = parse_file(seed, silent=True)
+        script, glob, _ = parse_file(seed, silent=True)
 
         if not script:
 
@@ -140,42 +146,26 @@ class Fuzzer:
         num_targets = len(self.args.SOLVER_CLIS)
         log_strategy_num_seeds(self.strategy, num_seeds, num_targets)
 
+        i = 0
         for seed in seeds:
-            if self.strategy == "typefuzz":
-                script, glob = self.get_script(seed)
-                if not script:
-                    continue
-
-                typecheck(script, glob)
-                script_cp = copy.deepcopy(script)
-                unique_expr = get_unique_subterms(script_cp)
-                self.mutator = GenTypeAwareMutation(
-                    script, self.args, unique_expr
-                )
-
-            elif self.strategy == "opfuzz":
-                script, _ = self.get_script(seed)
-                if not script:
-                    continue
-                self.mutator = TypeAwareOpMutation(script, self.args)
-
-            elif self.strategy == "yinyang":
-                script1, _, script2, _ = self.get_script_pair(seed)
-                if not script1 or not script2:
-                    continue
-                self.mutator = SemanticFusion(script1, script2, self.args)
-
-            else:
-                assert False
+            i += 1
+            if self.generate_mutator(seed) == False:
+                continue
 
             log_generation_attempt(self.args)
 
             unsuccessful_gens = 0
             successful_gens = 0
             self.timeout_of_current_seed = 0
+
             for i in range(self.args.iterations):
                 self.print_stats()
-                mutant, success, skip_seed = self.mutator.mutate()
+                if self.mutator is not None:
+                    mutant, success, skip_seed = self.mutator.mutate()
+                    self.generate_mutator(seed)
+                else:
+                    script, _ = self.get_script(seed)
+                    mutant, success, skip_seed = script, True, False
 
                 # Reason for unsuccessful generation: randomness in the
                 # mutator to more efficiently generate mutants.
@@ -193,17 +183,76 @@ class Fuzzer:
                     log_skip_seed_mutator(self.args, i)
                     break  # Continue to next seed.
 
-                (mutate_further, scratchfile) = self.test(mutant, i + 1)
-                if not mutate_further:  # Continue to next seed.
+                scratchprefix = "%s/%s-%s-%s" % (
+                    self.args.scratchfolder,
+                    escape("-".join(self.currentseeds)),
+                    self.name,
+                    random_string(),
+                )
+
+                mutate_further = self.test(mutant, i + 1, scratchprefix)
+
+                if not mutate_further:
                     log_skip_seed_test(self.args, i)
-                    break  # Continue to next seed.
+                    break 
 
                 self.statistic.mutants += 1
                 if not self.args.keep_mutants:
-                    os.remove(scratchfile)
+                    try:
+                        pattern = scratchprefix+"*"
+                        matches = glob.glob(pattern)
+                        for match in matches:
+                            print(match)
+                            if os.path.isdir(match):
+                                shutil.rmtree(match)
+                            else:
+                                os.remove(match)
+                    except OSError:
+                        pass
 
             log_finished_generations(successful_gens, unsuccessful_gens)
+        print ("All seeds processed, number of seeds: %d" % i)
         self.terminate()
+
+    def generate_mutator(self, seed):
+        if self.strategy == "typefuzz":
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(self.args.timeout)
+            try:
+                script, globvar = self.get_script(seed)
+                if not script:
+                    return False
+
+                typecheck(script, globvar)
+                script_cp = copy.deepcopy(script)
+                unique_expr = get_unique_subterms(script_cp)
+                self.mutator = GenTypeAwareMutation(
+                    script, self.args, unique_expr
+                )
+                signal.alarm(0)
+            except TimeoutException:
+                return False
+
+        elif self.strategy == "opfuzz":
+            script, _ = self.get_script(seed)
+            if not script:
+                return False
+            self.mutator = TypeAwareOpMutation(script, self.args)
+
+        elif self.strategy == "yinyang":
+            script1, _, script2, _ = self.get_script_pair(seed)
+            if not script1 or not script2:
+                return False
+            self.mutator = SemanticFusion(script1, script2, self.args)
+
+        elif self.strategy == "none":
+            script, _ = self.get_script(seed)
+            if not script:
+                return False
+            self.mutator = None
+        else:
+            assert False
+        return True
 
     def create_testbook(self, script):
         """
@@ -226,7 +275,7 @@ class Fuzzer:
             testbook.append((cli, testcase))
         return testbook
 
-    def test(self, script, iteration):
+    def test(self, script, iteration, scratchprefix):
         """
         Tests the solvers on the provided script. Checks for crashes, segfaults
         invalid models and soundness issues, ignores duplicates. Stores bug

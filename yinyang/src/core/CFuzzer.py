@@ -32,6 +32,7 @@ import logging
 import pathlib
 import faulthandler
 faulthandler.enable()
+
 from yinyang.src.base.Utils import timeout_handler, TimeoutException
 
 from yinyang.src.core.Fuzzer import Fuzzer
