@@ -267,8 +267,6 @@ class CodeBlock(ABC):
 
     def __init__(self, tmpid: TmpID, env: Environment, context: Context, args: Namespace, expression: Term, identifier=None):
         
-        if tmpid.num >= 40000:
-            raise MaxTmpIDException("Maximum number of temporary variables exceeded.")
         self.tmpid = tmpid
         self.args = args
         self.env = env
@@ -279,6 +277,9 @@ class CodeBlock(ABC):
             self.context = deepcopy(context)
         self.statements = []
         self.assignee = ""
+
+        if tmpid.num >= self.args.variables_limit:
+            raise MaxTmpIDException("Maximum number of temporary variables exceeded.")
 
         if identifier is None:
             self.customizedID = False
