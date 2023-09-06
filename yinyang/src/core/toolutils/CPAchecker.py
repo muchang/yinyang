@@ -24,6 +24,7 @@ import subprocess
 import os
 from enum import Enum
 
+from yinyang.config.Path import JAVA_PATH
 from yinyang.src.base.Exitcodes import ERR_USAGE
 from yinyang.src.core.Solver import  SolverQueryResult, SolverResult
 
@@ -45,7 +46,7 @@ class CPAchecker:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 shell=False,
-                env={"JAVA":"/zdata/chengyu/dafny_testing/tools/cpachecker/jdk-17.0.2/bin/java","PATH":os.environ['PATH']}
+                env={"JAVA":JAVA_PATH,"PATH":os.environ['PATH']}
             )
 
         except subprocess.TimeoutExpired as te:

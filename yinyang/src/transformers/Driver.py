@@ -5,6 +5,8 @@ path = Path(__file__)
 rootpath = str(path.parent.absolute().parent.parent.parent)
 sys.path.append(rootpath)
 
+
+from yinyang.src.transformers.Util import MaxTmpIDException
 from yinyang.src.transformers.CTransformer import CTransformer
 from yinyang.src.transformers.DafnyTransformer import DafnyTransformer
 from yinyang.src.parsing.Parse import parse_file

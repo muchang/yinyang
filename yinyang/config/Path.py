@@ -1,0 +1,1 @@
+JAVA_PATH = "/zdata/chengyu/dafny_testing/tools/cpachecker/jdk-17.0.2/bin/java"

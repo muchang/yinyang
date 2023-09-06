@@ -31,7 +31,7 @@ from yinyang.src.parsing.Types import (
     FORALL, EXISTS
 )
 from yinyang.src.parsing.Ast import Term
-from yinyang.src.transformers.Util import normalize_var_name
+from yinyang.src.transformers.Util import normalize_var_name, MaxTmpIDException
 
 class TmpID:
 
@@ -266,7 +266,9 @@ class CodeBlock(ABC):
         assert(0)
 
     def __init__(self, tmpid: TmpID, env: Environment, context: Context, args: Namespace, expression: Term, identifier=None):
-
+        
+        if tmpid.num >= 40000:
+            raise MaxTmpIDException("Maximum number of temporary variables exceeded.")
         self.tmpid = tmpid
         self.args = args
         self.env = env
@@ -372,7 +374,7 @@ class CodeBlock(ABC):
 
             unary_minus = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             self.statements.extend(unary_minus.statements)
-            self.assignee = "(%s %s)" % (self.arith_minus(), unary_minus.identifier)
+            self.assignee = "(%s%s)" % (self.arith_minus(), unary_minus.identifier)
         
         elif self.expression.op == MINUS and len(self.expression.subterms) > 1:
 

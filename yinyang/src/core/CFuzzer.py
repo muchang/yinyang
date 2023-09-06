@@ -38,6 +38,7 @@ from yinyang.src.core.Fuzzer import Fuzzer
 from yinyang.src.core.toolutils.C import Compiler
 from yinyang.src.core.toolutils.CPAchecker import CPAchecker
 from yinyang.src.transformers.CTransformer import CTransformer
+from yinyang.src.transformers.Util import MaxTmpIDException
 
 from yinyang.src.core.Statistic import Statistic
 from yinyang.src.core.Solver import Solver, SolverQueryResult, SolverResult
@@ -356,7 +357,10 @@ class CFuzzer(Fuzzer):
             reference = (solver_cli, stdout, stderr)
 
         formula = parse_file(scratchsmt)
-        transformer = CTransformer(formula, self.args)
+        try:
+            transformer = CTransformer(formula, self.args)
+        except MaxTmpIDException:
+            return False
         scratchc = scratchprefix+".c"
         with open(scratchc, "w") as f:
             f.write(str(transformer))
