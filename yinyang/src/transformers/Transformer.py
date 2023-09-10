@@ -305,8 +305,8 @@ class CodeBlock(ABC):
                 self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
             elif self.expression.op == None:
                 if self.assignee in self.context.free_vars:
-                    if self.context.free_vars[self.assignee] == self.type_real or self.context.free_vars[self.assignee] == self.type_int:
-                        self.statements.append(self.stmt_init_var(self.identifier, self.num_real(self.assignee)))
+                    if self.context.free_vars[self.assignee] == "Real" or self.context.free_vars[self.assignee] == "Int":
+                        self.statements.append(self.stmt_init_var(self.identifier, self.assignee))
                     else:
                         self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
                 elif str.isdigit(str(self.assignee).replace(".", "")):
@@ -662,6 +662,10 @@ class Transformer(CodeBlock):
     @abstractmethod
     def stmts_file_head(self) -> list:
         assert(0)
+    
+    @abstractmethod
+    def stmts_function_head(self) -> list:
+        assert(0)
 
     def __init__(self, formula, args: Namespace):
 
@@ -692,6 +696,7 @@ class Transformer(CodeBlock):
         
         self.statements = self.stmts_file_head()
         self.statements.append(self.stmt_method_head()+self.left_bracket())
+        self.statements.extend(self.stmts_function_head())
         self.statements.append(self.stmt_init_bool("oracle", self.bool_true()))
         for assertion in self.defined_assertions:
             self.statements.extend(assertion[1].statements)

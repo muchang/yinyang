@@ -208,3 +208,6 @@ class DafnyTransformer(DafnyCodeBlock, Transformer):
     
     def stmts_file_head(self) -> list:
         return []
+
+    def stmts_function_head(self) -> list:
+        return []

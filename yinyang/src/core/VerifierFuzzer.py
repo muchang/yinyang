@@ -261,8 +261,14 @@ class CFuzzer(VerifierFuzzer):
         self.name = "c"
 
     def verify(self, script, scratchprefix, oracle, reference, iteration):
+        #TODO: no parse here.
+        scratchsmt = scratchprefix+".smt2"
         try:
-            transformer = CTransformer(script, self.args)
+            formula = parse_file(scratchsmt)
+        except:
+            return False
+        try:
+            transformer = CTransformer(formula, self.args)
         except MaxTmpIDException:
             return False
         scratchc = scratchprefix+".c"
@@ -392,8 +398,12 @@ class DafnyFuzzer(VerifierFuzzer):
         self.name = "dafny"
     
     def verify(self, script, scratchprefix, oracle, reference, iteration):
-        
-        transformer = DafnyTransformer(script, self.args)
+        scratchsmt = scratchprefix+".smt2"
+        try:
+            formula = parse_file(scratchsmt)
+        except:
+            return False
+        transformer = DafnyTransformer(formula, self.args)
         scratchdafny = scratchprefix+".dfy"
         with open(scratchdafny, "w") as f:
             f.write(str(transformer))

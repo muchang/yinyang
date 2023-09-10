@@ -45,6 +45,9 @@ def exit_after(s):
             timer.start()
             try:
                 result = fn(*args, **kwargs)
+            except KeyboardInterrupt:
+                print("Interrupted")
+                result = None
             finally:
                 timer.cancel()
             return result

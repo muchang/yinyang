@@ -123,7 +123,15 @@ class CCodeBlock(CodeBlock):
         return "%s = %s;" % (identifier, assignee)
         
     def stmt_equal_chain(self, identifiers:list) -> str:
-        return super().stmt_equal_chain(identifiers)
+        if self.args.real_support:
+            combinations = []
+            for i in range(len(identifiers)):
+                for j in range(i+1, len(identifiers)):
+                    combo = "(fabs(%s - %s) < 0.00001)" % (identifiers[i], identifiers[j]) 
+                    combinations.append(combo)
+            return "%s" % self.op_bool_and().join(combinations)
+        else:
+            return super().stmt_equal_chain(identifiers)
     
     def stmt_distinct_chain(self, identifiers: list) -> str:
         return super().stmt_distinct_chain(identifiers)
@@ -213,4 +221,14 @@ class CTransformer(CCodeBlock, Transformer):
     
     def stmts_file_head(self) -> list:
         return ["#include <assert.h>",
-                "#include <stdbool.h>"]
+                "#include <stdbool.h>",
+                "#include <math.h>"]
+    
+    def stmts_function_head(self) -> list:
+        head = []
+        for var in self.context.free_vars:
+            if self.context.free_vars[var] == "Real":
+                head.append("if (isnan(%s) || isinf(%s)) return;" % (normalize_var_name(str(var)), normalize_var_name(str(var))))
+            elif self.context.free_vars[var] == "Bool":
+                head.append("if (%s != false) %s = true;" % (normalize_var_name(str(var)), normalize_var_name(str(var))))
+        return head

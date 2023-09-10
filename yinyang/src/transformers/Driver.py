@@ -62,6 +62,13 @@ parser.add_argument(
     metavar="{dafny, c}",
     type=str
 )
+parser.add_argument(
+    "-vars",
+    "--variables-limit",
+    default=40000,
+    metavar="num_vars",
+    type=int
+)
 args = parser.parse_args()
 
 print(args.smtfile)

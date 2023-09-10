@@ -103,7 +103,10 @@ class Fuzzer:
             return None, None
 
         self.currentseeds.append(pathlib.Path(seed).stem)
-        script, glob, _ = parse_file(seed, silent=True)
+        try:
+            script, glob, _ = parse_file(seed, silent=True)
+        except:
+            script = None
 
         if not script:
 
@@ -164,8 +167,8 @@ class Fuzzer:
                     mutant, success, skip_seed = self.mutator.mutate()
                     self.generate_mutator(seed)
                 else:
-                    script, _ = self.get_script(seed)
-                    mutant, success, skip_seed = script, True, False
+                    formula = self.get_script(seed)
+                    mutant, success, skip_seed = formula, True, False
 
                 # Reason for unsuccessful generation: randomness in the
                 # mutator to more efficiently generate mutants.
