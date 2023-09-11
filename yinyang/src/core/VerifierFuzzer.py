@@ -112,7 +112,11 @@ class VerifierFuzzer(Fuzzer, ABC):
         if returncode is not None:
             return returncode
 
-        return self.verify(script, scratchprefix, oracle, reference, iteration)
+        scratchsmt = scratchprefix+".smt2"
+        try: formula = parse_file(scratchsmt)
+        except: return False
+
+        return self.verify(formula, scratchprefix, oracle, reference, iteration)
     
     def smt_solve(self, script, iteration, scratchprefix):
         returncode = None
@@ -252,7 +256,7 @@ class VerifierFuzzer(Fuzzer, ABC):
         return report
 
     @abstractmethod
-    def verify(self, script, scratchprefix, oracle, reference, iteration):
+    def verify(self, formula, scratchprefix, oracle, reference, iteration):
         pass
 
 class CFuzzer(VerifierFuzzer):
@@ -260,13 +264,8 @@ class CFuzzer(VerifierFuzzer):
         super().__init__(args, strategy)
         self.name = "c"
 
-    def verify(self, script, scratchprefix, oracle, reference, iteration):
-        #TODO: no parse here.
-        scratchsmt = scratchprefix+".smt2"
-        try:
-            formula = parse_file(scratchsmt)
-        except:
-            return False
+    def verify(self, formula, scratchprefix, oracle, reference, iteration):
+        script = formula[0]
         try:
             transformer = CTransformer(formula, self.args)
         except MaxTmpIDException:
@@ -277,7 +276,6 @@ class CFuzzer(VerifierFuzzer):
 
         compiler_cli = self.args.SOLVER_CLIS[1]
         compiler = Compiler(compiler_cli, scratchprefix)
-        self.statistic.solver_calls += 1
 
         compiler_stdout, compiler_stderr, compiler_exitcode = compiler.compile(scratchc, self.args.timeout)
 
@@ -325,6 +323,7 @@ class CFuzzer(VerifierFuzzer):
         checker_cli = self.args.SOLVER_CLIS[2]
         checker = CPAchecker(checker_cli)
         checker_stdout, checker_stderr, checker_exitcode = checker.check(scratchc, self.args.timeout)
+        self.statistic.solver_calls += 1
 
         if checker_exitcode != 0:
 
@@ -397,12 +396,8 @@ class DafnyFuzzer(VerifierFuzzer):
         super().__init__(args, strategy)
         self.name = "dafny"
     
-    def verify(self, script, scratchprefix, oracle, reference, iteration):
-        scratchsmt = scratchprefix+".smt2"
-        try:
-            formula = parse_file(scratchsmt)
-        except:
-            return False
+    def verify(self, formula, scratchprefix, oracle, reference, iteration):
+        script = formula[0]
         transformer = DafnyTransformer(formula, self.args)
         scratchdafny = scratchprefix+".dfy"
         with open(scratchdafny, "w") as f:

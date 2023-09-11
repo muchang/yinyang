@@ -106,7 +106,7 @@ class Fuzzer:
         try:
             script, glob, _ = parse_file(seed, silent=True)
         except:
-            script = None
+            script, glob = None, None
 
         if not script:
 
