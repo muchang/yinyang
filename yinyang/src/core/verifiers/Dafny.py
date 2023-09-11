@@ -21,58 +21,17 @@
 # SOFTWARE.
 
 import subprocess
-from enum import Enum
 
 from yinyang.src.base.Exitcodes import ERR_USAGE
 from yinyang.src.core.Solver import  SolverQueryResult, SolverResult
+from yinyang.src.core.verifiers.Verifier import Verifier
 
 
-class Dafny:
-    def __init__(self, cil):
-        self.cil = cil
+class Dafny(Verifier):
 
-    def solve(self, file, timeout, debug=False):
-        cmd = []
-        try:
-            dafny_cmd = list(filter(None, self.cil.split(" ")))
-            cmd = [dafny_cmd[0]] + [file] + dafny_cmd[1:]
-            if debug:
-                print("cmd: " + " ".join(cmd), flush=True)
-            output = subprocess.run(
-                cmd,
-                timeout=timeout,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=False,
-            )
-
-        except subprocess.TimeoutExpired as te:
-            if te.stdout and te.stderr:
-                stdout = te.stdout.decode()
-                stderr = te.stderr.decode()
-            else:
-                stdout = ""
-                stderr = ""
-            return stdout, stderr, 137
-
-        except ValueError:
-            stdout = ""
-            stderr = ""
-            return stdout, stderr, 0
-
-        except FileNotFoundError:
-            assert (len(cmd) > 0)
-            print('error: solver "' + cmd[0] + '" not found', flush=True)
-            exit(ERR_USAGE)
-
-        stdout = output.stdout.decode()
-        stderr = output.stderr.decode()
-        returncode = output.returncode
-
-        if debug:
-            print("output: " + stdout + "\n" + stderr)
-
-        return stdout, stderr, returncode
+    def cmd(self, file:str) -> list:
+        dafny_cmd = list(filter(None, self.cil.split(" ")))
+        return [dafny_cmd[0]] + [file] + dafny_cmd[1:]
 
     def grep_result(self, stdout):
         if "assertion might not hold" in stdout:

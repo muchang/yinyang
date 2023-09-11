@@ -20,66 +20,41 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import os
 import re
-import glob
-import copy
-import time
-import shutil
-import random
 import signal
 import logging
-import pathlib
 import faulthandler
 faulthandler.enable()
 
 from abc import ABC, abstractmethod
 
-from yinyang.src.base.Utils import timeout_handler, TimeoutException
-
 from yinyang.src.core.Fuzzer import Fuzzer
-from yinyang.src.core.toolutils.C import Compiler
-from yinyang.src.core.toolutils.CPAchecker import CPAchecker
-from yinyang.src.core.toolutils.Dafny import Dafny
+from yinyang.src.core.verifiers.Verifier import Verifier
+from yinyang.src.core.verifiers.CCompiler import Compiler
+from yinyang.src.core.verifiers.CPAchecker import CPAchecker
+from yinyang.src.core.verifiers.Dafny import Dafny
+
+from yinyang.src.transformers.Transformer import Transformer    
 from yinyang.src.transformers.CTransformer import CTransformer
 from yinyang.src.transformers.DafnyTransformer import DafnyTransformer
 from yinyang.src.transformers.Util import MaxTmpIDException
 
-from yinyang.src.core.Statistic import Statistic
-from yinyang.src.core.Solver import Solver, SolverQueryResult, SolverResult
-
+from yinyang.src.core.Solver import Solver, SolverQueryResult
+from yinyang.src.base.Exitcodes import ERR_INTERNAL,ERR_COMPILATION,OK_TIMEOUT
 from yinyang.src.parsing.Parse import parse_file
-from yinyang.src.parsing.Typechecker import typecheck
-
-from yinyang.src.mutators.TypeAwareOpMutation import TypeAwareOpMutation
-from yinyang.src.mutators.SemanticFusion.SemanticFusion import SemanticFusion
-from yinyang.src.mutators.GenTypeAwareMutation.Util import get_unique_subterms
-from yinyang.src.mutators.GenTypeAwareMutation.GenTypeAwareMutation import GenTypeAwareMutation
 
 from yinyang.src.base.Utils import random_string, plain, escape
-from yinyang.src.base.Exitcodes import OK_BUGS, OK_NOBUGS, ERR_EXHAUSTED_DISK
+from yinyang.src.base.Exitcodes import ERR_EXHAUSTED_DISK
 
 from yinyang.src.core.Logger import (
-    init_logging,
-    log_strategy_num_seeds,
-    log_generation_attempt,
-    log_finished_generations,
-    log_crash_trigger,
     log_ignore_list_mutant,
-    log_duplicate_trigger,
     log_segfault_trigger,
     log_solver_timeout,
     log_soundness_trigger,
     log_invalid_mutant,
-    log_skip_seed_mutator,
-    log_skip_seed_test,
 )
 from yinyang.src.core.FuzzerUtil import (
-    get_seeds,
     grep_result,
-    admissible_seed_size,
-    in_crash_list,
-    in_duplicate_list,
     in_ignore_list,
     init_oracle,
 )
@@ -92,6 +67,7 @@ class VerifierFuzzer(Fuzzer, ABC):
         super().__init__(args, strategy)
         self.timeout_of_dafny_check = 0
         self.strategy = self.args.mutation_engine
+        self.postfix = ""
 
     def test(self, script, iteration, scratchprefix):
         """
@@ -173,8 +149,8 @@ class VerifierFuzzer(Fuzzer, ABC):
         return oracle, reference, returncode
 
 
-    def report(self, script, dafny, bugtype, cli, stdout, stderr):
-        plain_cli = plain(cli)
+    def report(self, script, code, bugtype, checker):
+        plain_cli = plain(checker.cli)
         # format: <solver><{crash,wrong,invalid_model}><seed>.<random-str>.smt2
         report = "%s/%s-%s-%s-%s" % (
             self.args.bugsfolder,
@@ -191,33 +167,22 @@ class VerifierFuzzer(Fuzzer, ABC):
             exit(ERR_EXHAUSTED_DISK)
         
         try:
-            with open(report+".c", "w") as report_writer:
-                report_writer.write(dafny.__str__())
+            with open(report+self.postfix, "w") as report_writer:
+                report_writer.write(code.__str__())
         except Exception:
             logging.error("error: couldn't copy scratchfile to bugfolder.")
             exit(ERR_EXHAUSTED_DISK)
 
         with open(report+".log", "w") as log:
-            log.write("command: " + cli + "\n")
+            log.write("command: " + checker.cli + "\n")
             log.write("stderr:\n")
-            log.write(stderr)
+            log.write(checker.stderr)
             log.write("stdout:\n")
-            log.write(stdout)
+            log.write(checker.stdout)
         return report
 
-    def report_diff(
-        self,
-        script,
-        dafny,
-        bugtype,
-        ref_cli,
-        ref_stdout,
-        ref_stderr,
-        sol_cli,
-        sol_stdout,
-        sol_stderr,
-    ):
-        plain_cli = plain(sol_cli)
+    def report_diff(self, script, code: Transformer, bugtype: str, ref: list, verifier: Verifier):
+        plain_cli = plain(verifier.cil)
         # format: <solver><{crash,wrong,invalid_model}><seed>.<random-str>.smt2
         report = "%s/%s-%s-%s-%s" % (
             self.args.bugsfolder,
@@ -235,24 +200,24 @@ class VerifierFuzzer(Fuzzer, ABC):
         
         try: 
             with open(report+".c", "w") as report_writer:
-                report_writer.write(dafny.__str__())
+                report_writer.write(code.__str__())
         except Exception:
             logging.error("error: couldn't copy scratchfile to bugfolder.")
             exit(ERR_EXHAUSTED_DISK)
 
         with open(report+".log", "w") as log:
             log.write("*** REFERENCE \n")
-            log.write("command: " + ref_cli + "\n")
+            log.write("command: " + ref[0] + "\n")
             log.write("stderr:\n")
-            log.write(ref_stderr)
+            log.write(ref[1])
             log.write("stdout:\n")
-            log.write(ref_stdout)
+            log.write(ref[2])
             log.write("\n\n*** INCORRECT \n")
-            log.write("command: " + sol_cli + "\n")
+            log.write("command: " + verifier.cil + "\n")
             log.write("stderr:\n")
-            log.write(sol_stderr)
+            log.write(verifier.stderr)
             log.write("stdout:\n")
-            log.write(sol_stdout)
+            log.write(verifier.stdout)
         return report
 
     @abstractmethod
@@ -262,7 +227,7 @@ class VerifierFuzzer(Fuzzer, ABC):
 class CFuzzer(VerifierFuzzer):
     def __init__(self, args, strategy):
         super().__init__(args, strategy)
-        self.name = "c"
+        self.postfix = ".c"
 
     def verify(self, formula, scratchprefix, oracle, reference, iteration):
         script = formula[0]
@@ -276,117 +241,113 @@ class CFuzzer(VerifierFuzzer):
 
         compiler_cli = self.args.SOLVER_CLIS[1]
         compiler = Compiler(compiler_cli, scratchprefix)
+        compiler.run(scratchc, self.args.timeout)
 
-        compiler_stdout, compiler_stderr, compiler_exitcode = compiler.compile(scratchc, self.args.timeout)
-
-        if compiler_exitcode != 0:
-            
-            if compiler_exitcode == -signal.SIGSEGV or compiler_exitcode == 245:
+        if compiler.returncode != 0:
+            exitcode = compiler.check_exitcode()
+            if exitcode == ERR_INTERNAL:
                 self.statistic.effective_calls += 1
                 self.statistic.crashes += 1
-                compiler_stderr += str(-signal.SIGSEGV) + str(compiler_exitcode)
-                path = self.report(
-                    script, transformer, "segfault", compiler_cli, compiler_stdout, compiler_stderr
-                )
+                path = self.report(script, transformer, "segfault", compiler)
                 log_segfault_trigger(self.args, path, iteration)
                 return True
-
-            elif compiler_exitcode == 137:
+            elif exitcode == OK_TIMEOUT:                
                 self.statistic.timeout += 1
                 self.timeout_of_current_seed += 1
-                log_solver_timeout(self.args, compiler_cli, iteration)
+                log_solver_timeout(self.args, compiler.cil, iteration)
                 return False
-            
-            elif compiler_exitcode == 127:
-                raise Exception("Compiler not found: %s" % compiler_cli)
-            
-            else:
-                compiler_stderr += str(-signal.SIGSEGV) + str(compiler_exitcode)
-                path = self.report(
-                    script, transformer, "compilation_error", compiler_cli, compiler_stdout, compiler_stderr
-                )
+            elif exitcode == ERR_COMPILATION:
+                path = self.report(script, transformer, "compilation_error", compiler)
                 log_segfault_trigger(self.args, path, iteration)
                 return True
-            
-        self.statistic.effective_calls += 1
-        binary_stdout, binary_stderr, binary_exitcode = compiler.execute_binary(self.args.timeout)
+        
+        compiler.execute_binary(self.args.timeout)
 
-        if binary_exitcode == 134:
+        if compiler.returncode == 134:
             if oracle.equals(SolverQueryResult.UNSAT):
                 self.statistic.soundness += 1
-                path = self.report(
-                    script, transformer, "incorrect", compiler_cli, binary_stdout, binary_stderr
-                )
+                path = self.report(script, transformer, "incorrect", compiler)
                 log_soundness_trigger(self.args, iteration, path)
                 return False
             
         checker_cli = self.args.SOLVER_CLIS[2]
         checker = CPAchecker(checker_cli)
-        checker_stdout, checker_stderr, checker_exitcode = checker.check(scratchc, self.args.timeout)
-        self.statistic.solver_calls += 1
+        checker.run(scratchc, self.args.timeout)
 
-        if checker_exitcode != 0:
+        if checker.returncode != 0:
 
-            # Check whether the solver crashed with a segfault.
-            if checker_exitcode == -signal.SIGSEGV or checker_exitcode == 245:
+            exitcode = checker.check_exitcode()
+            if exitcode == ERR_INTERNAL:
                 self.statistic.effective_calls += 1
                 self.statistic.crashes += 1
-                checker_stderr += str(-signal.SIGSEGV) + str(checker_exitcode)
-                path = self.report(
-                    script, transformer, "segfault", checker_cli, checker_stdout, checker_stderr
-                )
+                path = self.report(script, transformer, "segfault", checker)
                 log_segfault_trigger(self.args, path, iteration)
                 return True
-
-            elif checker_exitcode == 137:
+            elif exitcode == OK_TIMEOUT:                
                 self.statistic.timeout += 1
                 self.timeout_of_current_seed += 1
-                log_solver_timeout(self.args, checker_cli, iteration)
+                log_solver_timeout(self.args, checker.cil, iteration)
                 return False
-
-            elif checker_exitcode == 127:
-                raise Exception("Compiler not found: %s" % checker_cli)
-            
-            else:
-                checker_stderr += str(-signal.SIGSEGV) + str(checker_exitcode)
-                path = self.report(
-                    script, transformer, "compilation_error", checker_cli, checker_stdout, checker_stderr
-                )
+            elif exitcode == ERR_COMPILATION:
+                path = self.report(script, transformer, "compilation_error", checker)
                 log_segfault_trigger(self.args, path, iteration)
                 return True
             
-        elif "Parsing failed" in checker_stderr + checker_stdout:
-            path = self.report(
-                    script, transformer, "compilation_error", checker_cli, checker_stdout, checker_stderr
-                )
+        elif "Parsing failed" in checker.stderr + checker.stdout:
+            path = self.report(script, transformer, "compilation_error", checker)
             log_segfault_trigger(self.args, path, iteration)
             return True
         
         else:
-            result = checker.grep_result(checker_stdout+checker_stderr)
-            if not oracle.equals(result):
-                self.statistic.soundness += 1
-                if reference:
-                    ref_cli = reference[0]
-                    ref_stdout = reference[1]
-                    ref_stderr = reference[2]
-                    path = self.report_diff(
-                        script,
-                        transformer,
-                        "incorrect",
-                        ref_cli,
-                        ref_stdout,
-                        ref_stderr,
-                        checker_cli,
-                        checker_stdout,
-                        checker_stderr,
-                    )
+
+            result = checker.grep_result(checker.stdout+checker.stderr)
+            if not result.equals(SolverQueryResult.SAT):
+
+                checker_cli = self.args.SOLVER_CLIS[3]
+                checker = CPAchecker(checker_cli)
+                checker.run(scratchc, self.args.timeout)
+                self.statistic.solver_calls += 1
+
+                if checker.returncode != 0:
+
+                    exitcode = checker.check_exitcode()
+                    if exitcode == ERR_INTERNAL:
+                        self.statistic.effective_calls += 1
+                        self.statistic.crashes += 1
+                        path = self.report(script, transformer, "segfault", checker)
+                        log_segfault_trigger(self.args, path, iteration)
+                        return True
+                    elif exitcode == OK_TIMEOUT:                
+                        self.statistic.timeout += 1
+                        self.timeout_of_current_seed += 1
+                        log_solver_timeout(self.args, checker.cil, iteration)
+                        return False
+                    elif exitcode == ERR_COMPILATION:
+                        path = self.report(script, transformer, "compilation_error", checker)
+                        log_segfault_trigger(self.args, path, iteration)
+                        return True
+                    
+                elif "Parsing failed" in checker.stderr + checker.stdout:
+                    path = self.report(script, transformer, "compilation_error", checker)
+                    log_segfault_trigger(self.args, path, iteration)
+                    return True
+        
                 else:
-                    path = self.report(
-                        script, transformer, "incorrect", checker_cli,
-                        checker_stdout, checker_stderr
-                    )
-                log_soundness_trigger(self.args, iteration, path)
+                    result = checker.grep_result(checker.stdout+checker.stderr)
+                    if not oracle.equals(result):
+                        self.statistic.soundness += 1
+                        if reference:
+                            path = self.report_diff(
+                                script,
+                                transformer,
+                                "incorrect",
+                                reference,
+                                checker
+                            )
+                        else:
+                            path = self.report(
+                                script, transformer, "incorrect", checker)
+                        log_soundness_trigger(self.args, iteration, path)
 
         return True
 
@@ -394,7 +355,7 @@ class CFuzzer(VerifierFuzzer):
 class DafnyFuzzer(VerifierFuzzer):
     def __init__(self, args, strategy):
         super().__init__(args, strategy)
-        self.name = "dafny"
+        self.postfix = ".dfy"
     
     def verify(self, formula, scratchprefix, oracle, reference, iteration):
         script = formula[0]
@@ -407,70 +368,55 @@ class DafnyFuzzer(VerifierFuzzer):
         dafny = Dafny(dafny_cli)
         self.statistic.solver_calls += 1
 
-        dafny_stdout, dafny_stderr, dafny_exitcode = dafny.solve(
-            scratchdafny, self.args.timeout
-        )
+        dafny.run(scratchdafny, self.args.timeout)
 
-        if dafny_exitcode != 0 and dafny_exitcode != 4:
-
-            if dafny_exitcode == -signal.SIGSEGV or dafny_exitcode == 245:
+        if dafny.returncode != 0 and dafny.returncode != 4:
+            exitcode = dafny.check_exitcode()
+            if exitcode == ERR_INTERNAL:
                 self.statistic.effective_calls += 1
                 self.statistic.crashes += 1
-                dafny_stderr += str(-signal.SIGSEGV) + str(dafny_exitcode)
-                path = self.report(
-                    script, transformer, "segfault", dafny_cli, dafny_stdout, dafny_stderr
-                )
+                path = self.report(script, transformer, "segfault", dafny)
                 log_segfault_trigger(self.args, path, iteration)
                 return True
 
-            elif dafny_exitcode == 137:
+            elif exitcode == OK_TIMEOUT:                
                 self.statistic.timeout += 1
                 self.timeout_of_current_seed += 1
                 log_solver_timeout(self.args, dafny_cli, iteration)
                 return False
 
-            elif dafny_exitcode == 127:
+            elif dafny.returncode == 127:
                 raise Exception("Dafny not found: %s" % dafny_cli)
 
-            elif "Program compiled successfully" not in dafny_stdout and "Duplicate local-variable" not in dafny_stdout:
+            elif "Program compiled successfully" not in dafny.stdout and "Duplicate local-variable" not in dafny.stdout:
                 self.statistic.effective_calls += 1
                 self.statistic.crashes += 1
                 path = self.report(
-                    script, transformer, "compile_error", dafny_cli, dafny_stdout, dafny_stderr
+                    script, transformer, "compile_error", dafny
                 )
                 log_segfault_trigger(self.args, path, iteration)
                 return True
             
             else:
-                raise Exception("Dafny exited with code %s, stdout %s, stderr %s" % (dafny_exitcode, dafny_stdout, dafny_stderr))
+                raise Exception("Dafny exited with code %s, stdout %s, stderr %s" % (dafny.returncode, dafny.stdout, dafny.stderr))
             
         else:
 
             self.statistic.effective_calls += 1
-            result = dafny.grep_result(dafny_stdout)
+            result = dafny.grep_result(dafny.stdout)
 
             if not oracle.equals(result):
                 self.statistic.soundness += 1
                 if reference:
-                    ref_cli = reference[0]
-                    ref_stdout = reference[1]
-                    ref_stderr = reference[2]
                     path = self.report_diff(
                         script,
                         transformer,
                         "incorrect",
-                        ref_cli,
-                        ref_stdout,
-                        ref_stderr,
-                        dafny_cli,
-                        dafny_stdout,
-                        dafny_stderr,
+                        reference,
+                        dafny
                     )
                 else:
-                    path = self.report(
-                        script, transformer, "incorrect", dafny_cli,
-                        dafny_stdout, dafny_stderr
-                    )
+                    path = self.report(script, transformer, "incorrect", dafny)
                 log_soundness_trigger(self.args, iteration, path)
                 return False 
             

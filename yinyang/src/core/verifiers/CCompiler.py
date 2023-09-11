@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) [2020 - 2021] The yinyang authors
+# Copyright (c) [2020 - 2020] The yinyang authors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,11 +20,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-OK_NOBUGS = 0           # no error and no bugs
-OK_BUGS = 10            # no error and bugs
-OK_TIMEOUT = 20         # timeout
-ERR_USAGE = 2           # commandline usage error
-ERR_INTERNAL = 3        # internal error within the tool
-ERR_SOLVER_CFG = 4      # usage error of one or more solver configurations
-ERR_EXHAUSTED_DISK = 5  # disk space exhaustion error
-ERR_COMPILATION = 6     # compilation error
+import subprocess
+from yinyang.src.base.Exitcodes import ERR_USAGE
+from yinyang.src.core.verifiers.Verifier import Verifier
+
+
+class Compiler(Verifier):
+
+    def __init__(self, cil, scratchprefix):
+        super().__init__(cil)
+        self.output = scratchprefix
+        self.status = "compile"
+    
+    def cmd(self, file:str) -> list:
+        if self.status == "compile":
+            compiler_cmd = list(filter(None, self.cil.split(" ")))
+            return compiler_cmd + [file] + ["-o"] + [self.output]
+        elif self.status == "execute":
+            return [file]
+        else:
+            raise Exception("Compiler: unknown status")
+
+    def execute_binary(self, timeout, debug=False):
+        self.status = "execute"
+        self.run(self.output, timeout, debug)
+        self.status = "compile"
+
