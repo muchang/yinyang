@@ -22,8 +22,9 @@
 
 import re
 from enum import Enum
+from yinyang.src.base.Utils import in_list
 from yinyang.src.core.Tool import Tool
-from yinyang.src.core.FuzzerUtil import in_ignore_list
+from yinyang.config.Config import crash_list
 from yinyang.src.core.Logger import log_ignore_list_mutant
 
 class SolverQueryResult(Enum):
@@ -101,7 +102,7 @@ class Solver(Tool):
 
     def get_result(self):
 
-        if in_ignore_list(self.stdout, self.stderr):
+        if in_list(self.stdout, self.stderr, crash_list):
             log_ignore_list_mutant((self.cil))
             return SolverResult(SolverQueryResult.UNKNOWN)
 

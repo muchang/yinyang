@@ -97,8 +97,8 @@ class VerifierFuzzer(Fuzzer, ABC):
 
         return self.verify(formula, scratchprefix, solver)
 
-    def report(self, script, code, bugtype, checker):
-        plain_cli = plain(checker.cli)
+    def report(self, script, code, bugtype, checker:Tool):
+        plain_cli = plain(checker.cil)
         # format: <solver><{crash,wrong,invalid_model}><seed>.<random-str>.smt2
         report = "%s/%s-%s-%s-%s" % (
             self.args.bugsfolder,
@@ -122,7 +122,7 @@ class VerifierFuzzer(Fuzzer, ABC):
             exit(ERR_EXHAUSTED_DISK)
 
         with open(report+".log", "w") as log:
-            log.write("command: " + checker.cli + "\n")
+            log.write("command: " + checker.cil + "\n")
             log.write("stderr:\n")
             log.write(checker.stderr)
             log.write("stdout:\n")
@@ -320,14 +320,13 @@ class DafnyFuzzer(VerifierFuzzer):
         elif dafny.returncode == 127:
             raise Exception("Dafny not found: %s" % dafny_cli)
 
-        elif "Program compiled successfully" not in dafny.stdout and "Duplicate local-variable" not in dafny.stdout:
-            self.statistic.effective_calls += 1
-            self.statistic.crashes += 1
-            path = self.report(script, transformer, "compile_error", dafny)
-            log_segfault_trigger(self.args, path, self.iteration)
-            return True, "dafny compile_error"
-        
-        if dafny.returncode != 0 and dafny.returncode != 4:
+        elif dafny.returncode != 0 and dafny.returncode != 4:
+            if "Program compiled successfully" not in dafny.stdout and "Duplicate local-variable" not in dafny.stdout:
+                self.statistic.effective_calls += 1
+                self.statistic.crashes += 1
+                path = self.report(script, transformer, "compile_error", dafny)
+                log_segfault_trigger(self.args, path, self.iteration)
+                return True, "dafny compile_error"
             raise Exception("Dafny exited with code %s, stdout %s, stderr %s" % (dafny.returncode, dafny.stdout, dafny.stderr))
             
         self.statistic.effective_calls += 1
