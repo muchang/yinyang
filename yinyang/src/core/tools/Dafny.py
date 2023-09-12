@@ -23,26 +23,25 @@
 import subprocess
 
 from yinyang.src.base.Exitcodes import ERR_USAGE
-from yinyang.src.core.Solver import  SolverQueryResult, SolverResult
-from yinyang.src.core.verifiers.Verifier import Verifier
+from yinyang.src.core.tools.Solver import  SolverQueryResult, SolverResult
+from yinyang.src.core.Tool import Tool
 
 
-class Dafny(Verifier):
+class Dafny(Tool):
 
     def cmd(self, file:str) -> list:
         dafny_cmd = list(filter(None, self.cil.split(" ")))
         return [dafny_cmd[0]] + [file] + dafny_cmd[1:]
 
-    def grep_result(self, stdout):
-        if "assertion might not hold" in stdout:
+    def get_result(self):
+        if "assertion might not hold" in self.stdout:
             return SolverResult(SolverQueryResult.SAT)
-        elif "getting info about 'unknown' response" in stdout:
+        elif "getting info about 'unknown' response" in self.stdout:
             return SolverResult(SolverQueryResult.UNKNOWN)
-        elif "out of resource" in stdout:
+        elif "out of resource" in self.stdout:
             return SolverResult(SolverQueryResult.UNKNOWN)
-        elif "0 error" in stdout:
+        elif "0 error" in self.stdout:
             return SolverResult(SolverQueryResult.UNSAT)
         else:
-            raise Exception("dafny: unknown result \n %d", stdout)
-            return SolverResult(SolverQueryResult.UNKNOWN)  
+            raise Exception("dafny: unknown result \n %d", self.stdout)
 

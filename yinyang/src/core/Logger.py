@@ -147,7 +147,7 @@ def log_skip_seed_mutator(args, i):
 
 
 def log_skip_seed_test(args, i):
-    logging.debug(
+    logging.info(
         str(i)
         + "/"
         + str(args.iterations)

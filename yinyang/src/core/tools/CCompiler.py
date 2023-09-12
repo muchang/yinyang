@@ -20,33 +20,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import subprocess
+from yinyang.src.base.Exitcodes import ERR_USAGE
+from yinyang.src.core.Tool import Tool
 
-import os
 
-from yinyang.config.Path import JAVA_PATH
-from yinyang.src.core.Solver import  SolverQueryResult, SolverResult
-from yinyang.src.core.verifiers.Verifier import Verifier
+class Compiler(Tool):
 
-class CPAchecker(Verifier):
-
-    def __init__(self, cil):
+    def __init__(self, cil, scratchprefix):
         super().__init__(cil)
-        self.env = {"JAVA":JAVA_PATH,"PATH":os.environ['PATH']}
-
+        self.output = scratchprefix
+        self.status = "compile"
+    
     def cmd(self, file:str) -> list:
-        cpa_cmd = list(filter(None, self.cil.split(" ")))
-        return cpa_cmd + [file]
-
-    def grep_result(self, stdout):
-        if "Verification result: FALSE." in stdout:
-            return SolverResult(SolverQueryResult.SAT)
-        elif "Verification result: TRUE." in stdout:
-            return SolverResult(SolverQueryResult.UNSAT)
+        if self.status == "compile":
+            compiler_cmd = list(filter(None, self.cil.split(" ")))
+            return compiler_cmd + [file] + ["-o"] + [self.output]
+        elif self.status == "execute":
+            return [file]
         else:
-            print("CPAchecker: unknown result \n %d %d", stdout)
-            raise Exception("CPAchecker: unknown result \n %d %d", stdout)
-            return SolverResult(SolverQueryResult.UNKNOWN)  
-    
-    
-        
+            raise Exception("Compiler: unknown status")
+
+    def execute_binary(self, timeout, debug=False):
+        self.status = "execute"
+        self.run(self.output, timeout, debug)
+        self.status = "compile"
 

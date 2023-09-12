@@ -24,9 +24,9 @@ import signal
 import subprocess
 
 from abc import ABC, abstractmethod
-from yinyang.src.base.Exitcodes import ERR_USAGE,ERR_INTERNAL,ERR_COMPILATION,OK_TIMEOUT
+from yinyang.src.base.Exitcodes import ERR_USAGE,ERR_INTERNAL,ERR_COMPILATION,OK_TIMEOUT,OK_NOBUGS
 
-class Verifier(ABC):
+class Tool(ABC):
     
     stdout: str
     stderr: str
@@ -86,7 +86,10 @@ class Verifier(ABC):
 
         return
     
-    def check_exitcode(self,):
+    def check_exitcode(self):
+
+        if self.returncode == 0:
+            return OK_NOBUGS
 
         if self.returncode == -signal.SIGSEGV or self.returncode == 245:
             self.stderr += str(-signal.SIGSEGV) + str(self.returncode)

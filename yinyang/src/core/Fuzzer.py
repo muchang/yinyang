@@ -36,7 +36,7 @@ faulthandler.enable()
 from yinyang.src.base.Utils import timeout_handler, TimeoutException
 
 from yinyang.src.core.Statistic import Statistic
-from yinyang.src.core.Solver import Solver, SolverQueryResult, SolverResult
+from yinyang.src.core.tools.Solver import Solver, SolverQueryResult, SolverResult
 
 from yinyang.src.parsing.Parse import parse_file
 from yinyang.src.parsing.Typechecker import typecheck
@@ -69,7 +69,6 @@ from yinyang.src.core.Logger import (
 )
 from yinyang.src.core.FuzzerUtil import (
     get_seeds,
-    grep_result,
     admissible_seed_size,
     in_crash_list,
     in_duplicate_list,
@@ -195,23 +194,22 @@ class Fuzzer:
 
                 mutate_further = self.test(mutant, i + 1, scratchprefix)
 
-                if not mutate_further:
-                    log_skip_seed_test(self.args, i)
-                    break 
-
                 self.statistic.mutants += 1
                 if not self.args.keep_mutants:
                     try:
                         pattern = scratchprefix+"*"
                         matches = glob.glob(pattern)
                         for match in matches:
-                            print(match)
                             if os.path.isdir(match):
                                 shutil.rmtree(match)
                             else:
                                 os.remove(match)
                     except OSError:
                         pass
+                
+                if not mutate_further:
+                    log_skip_seed_test(self.args, i)
+                    break 
 
             log_finished_generations(successful_gens, unsuccessful_gens)
         print ("All seeds processed, number of seeds: %d" % i)
@@ -305,9 +303,8 @@ class Fuzzer:
             solver_cli, scratchfile = testitem[0], testitem[1]
             solver = Solver(solver_cli)
             self.statistic.solver_calls += 1
-            stdout, stderr, exitcode = solver.solve(
-                scratchfile, self.args.timeout
-            )
+            solver.run(scratchfile, self.args.timeout)
+            stdout, stderr, exitcode = solver.stdout, solver.stderr, solver.returncode
 
             if self.max_timeouts_reached():
                 return (False, scratchfile)
@@ -385,7 +382,7 @@ class Fuzzer:
                     # (yinyang) or with other non-erroneous solver runs
                     # (opfuzz) for soundness bugs.
                     self.statistic.effective_calls += 1
-                    result = grep_result(stdout)
+                    result = solver.get_result()
                     if oracle.equals(SolverQueryResult.UNKNOWN):
 
                         # For differential testing (opfuzz), the first solver
