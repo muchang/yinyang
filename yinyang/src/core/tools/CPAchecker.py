@@ -45,7 +45,7 @@ class CPAchecker(Tool):
         elif "Verification result: UNKNOWN" in self.stdout:
             return SolverResult(SolverQueryResult.UNKNOWN)
         else:
-            raise Exception("CPAchecker: unknown result \n %d %d", self.stdout)
+            raise Exception("CPAchecker: unknown result \n %s %s", self.stdout, self.stderr)
     
     
         
