@@ -336,16 +336,16 @@ class DafnyFuzzer(VerifierFuzzer):
             raise Exception("Dafny not found: %s" % dafny_cli)
 
         elif dafny.returncode != 0 and dafny.returncode != 4:
-            if "Program compiled successfully" not in dafny.stdout and "Duplicate local-variable" not in dafny.stdout:
+            if "Out of memory" not in dafny.stderr and\
+               "System.OutOfMemoryException" not in dafny.stderr and \
+               "No usable version of libssl was found" not in dafny.stderr:
                 self.statistic.effective_calls += 1
                 self.statistic.crashes += 1
                 path = self.report(script, transformer, "compile_error", dafny)
                 log_segfault_trigger(self.args, path, self.iteration)
                 return True, "dafny compile_error"
             else:
-                path = self.report(script, transformer, "compile_error", dafny)
-                log_segfault_trigger(self.args, path, self.iteration)
-                return True, "unknown compile_error"
+                return False, "dafny out of memory"
             
         self.statistic.effective_calls += 1
         result = dafny.get_result()
