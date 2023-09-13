@@ -33,6 +33,7 @@ class Tool(ABC):
     returncode: int
 
     def __init__(self, cil:str):
+        self.basecil = cil
         self.cil = cil
         self.env = None
         self.stdout = ""

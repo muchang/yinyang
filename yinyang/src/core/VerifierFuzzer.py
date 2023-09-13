@@ -98,7 +98,7 @@ class VerifierFuzzer(Fuzzer, ABC):
         return self.verify(formula, scratchprefix, solver)
 
     def report(self, script, code, bugtype, checker:Tool):
-        plain_cli = plain(checker.cil)
+        plain_cli = plain(checker.basecil)
         # format: <solver><{crash,wrong,invalid_model}><seed>.<random-str>.smt2
         report = "%s/%s-%s-%s-%s" % (
             self.args.bugsfolder,
@@ -110,7 +110,8 @@ class VerifierFuzzer(Fuzzer, ABC):
         try:
             with open(report+".smt2", "w") as report_writer:
                 report_writer.write(script.__str__())
-        except Exception:
+        except Exception as e:
+            print(e)
             logging.error("error: couldn't copy scratchfile to bugfolder.")
             exit(ERR_EXHAUSTED_DISK)
         
@@ -130,7 +131,7 @@ class VerifierFuzzer(Fuzzer, ABC):
         return report
 
     def report_diff(self, script, code: Transformer, bugtype: str, solver: Solver, verifier: Tool):
-        plain_cli = plain(verifier.cil)
+        plain_cli = plain(verifier.basecil)
         # format: <solver><{crash,wrong,invalid_model}><seed>.<random-str>.smt2
         report = "%s/%s-%s-%s-%s" % (
             self.args.bugsfolder,
@@ -193,7 +194,6 @@ class CFuzzer(VerifierFuzzer):
 
         exitcode = compiler.check_exitcode()
         if exitcode == ERR_INTERNAL:
-            self.statistic.effective_calls += 1
             self.statistic.crashes += 1
             path = self.report(script, transformer, "segfault", compiler)
             log_segfault_trigger(self.args, path, self.iteration)
@@ -227,7 +227,6 @@ class CFuzzer(VerifierFuzzer):
 
         exitcode = checker.check_exitcode()
         if exitcode == ERR_INTERNAL:
-            self.statistic.effective_calls += 1
             self.statistic.crashes += 1
             path = self.report(script, transformer, "segfault", checker)
             log_segfault_trigger(self.args, path, self.iteration)
@@ -250,8 +249,11 @@ class CFuzzer(VerifierFuzzer):
             log_segfault_trigger(self.args, path, self.iteration)
             return True, "unknown error"
 
-        self.statistic.effective_calls += 1
         result = checker.get_result()
+        if result == ERR_COMPILATION: 
+            path = self.report(script, transformer, "compilation_error", checker)
+            log_segfault_trigger(self.args, path, self.iteration)
+            return True, "unknown error" 
         if result.equals(SolverQueryResult.SAT):
             return True, "overflow in the test"
 
@@ -347,7 +349,10 @@ class DafnyFuzzer(VerifierFuzzer):
             
         self.statistic.effective_calls += 1
         result = dafny.get_result()
-
+        if result == ERR_COMPILATION:
+            path = self.report(script, transformer, "compilation_error", dafny)
+            log_segfault_trigger(self.args, path, self.iteration)
+            return True, "dafny compilation_error"
         if not solver.result.equals(result):
             self.statistic.soundness += 1
             path = self.report_diff(script,transformer,"incorrect",solver,dafny)

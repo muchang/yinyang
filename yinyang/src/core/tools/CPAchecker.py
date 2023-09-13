@@ -26,6 +26,7 @@ import os
 from yinyang.config.Path import JAVA_PATH
 from yinyang.src.core.tools.Solver import  SolverQueryResult, SolverResult
 from yinyang.src.core.Tool import Tool
+from yinyang.src.base.Exitcodes import ERR_COMPILATION
 
 class CPAchecker(Tool):
 
@@ -45,7 +46,7 @@ class CPAchecker(Tool):
         elif "Verification result: UNKNOWN" in self.stdout:
             return SolverResult(SolverQueryResult.UNKNOWN)
         else:
-            raise Exception("CPAchecker: unknown result \n %s %s", self.stdout, self.stderr)
+            return ERR_COMPILATION
     
     
         
