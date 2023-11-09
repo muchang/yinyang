@@ -171,6 +171,9 @@ class DafnyCodeBlock(CodeBlock):
     
     def stmts_while(self, condition:str, statements:list) -> list:
         return ["while (%s) {" % condition] + statements + ["}"]
+    
+    def stmt_bool_chain(self, identifiers:list, op) -> str:
+        return super().stmt_bool_chain(identifiers, op)
 
     def create_codeblock(self, tmpid, env, context, args, expression: Term, identifier=None) -> CodeBlock:
         return DafnyCodeBlock(tmpid, env, context, args, expression, identifier)
