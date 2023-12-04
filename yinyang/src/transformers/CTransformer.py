@@ -121,16 +121,23 @@ class CCodeBlock(CodeBlock):
     def stmt_assign(self, identifier:str, assignee:str) -> str:
         return "%s = %s;" % (identifier, assignee)
         
-    def stmt_equal_chain(self, identifiers:list) -> str:
-        if self.args.real_support:
+    def stmt_bool_chain(self, identifiers:list, op) -> str:
+        if self.args.real_support and op in [self.op_equal(), self.op_bool_gte(), self.op_bool_lte()]:
             combinations = []
             for i in range(len(identifiers)):
                 for j in range(i+1, len(identifiers)):
-                    combo = "(fabs(%s - %s) < 0.00001)" % (identifiers[i], identifiers[j]) 
+                    if op == self.op_equal():
+                        combo = "(fabs(%s - %s) < 0.00000001)" % (identifiers[i], identifiers[j]) 
+                    elif op == self.op_bool_gte():
+                        combo = "(%s+0.00000001 %s %s)" % (identifiers[i], op, identifiers[j])
+                    elif op == self.op_bool_lte():
+                        combo = "(%s %s %s+0.00000001)" % (identifiers[i], op, identifiers[j])
+                    else:
+                        raise Exception("Unsupported operator: %s" % op)
                     combinations.append(combo)
             return "%s" % self.op_bool_and().join(combinations)
         else:
-            return super().stmt_equal_chain(identifiers)
+            return super().stmt_bool_chain(identifiers, op)
     
     def stmt_distinct_chain(self, identifiers: list) -> str:
         return super().stmt_distinct_chain(identifiers)

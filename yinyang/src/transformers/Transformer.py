@@ -244,11 +244,11 @@ class CodeBlock(ABC):
         assert(0)
     
     @abstractmethod
-    def stmt_equal_chain(self, identifiers:list) -> str:
+    def stmt_bool_chain(self, identifiers:list, op) -> str:
         combinations = []
         for i in range(len(identifiers)):
             for j in range(i+1, len(identifiers)):
-                combo = "(%s %s %s)" % (identifiers[i], self.op_equal(), identifiers[j]) 
+                combo = "(%s %s %s)" % (identifiers[i], op, identifiers[j]) 
                 combinations.append(combo)
         return "%s" % self.op_bool_and().join(combinations)
     
@@ -359,7 +359,7 @@ class CodeBlock(ABC):
                 self.statements.extend(equal.statements)
                 equal_identifiers.append(equal.identifier)
             
-            self.assignee = self.stmt_equal_chain(equal_identifiers)
+            self.assignee = self.stmt_bool_chain(equal_identifiers, self.op_equal())
         
         elif self.expression.op == DISTINCT:
 
@@ -529,12 +529,7 @@ class CodeBlock(ABC):
             self.statements.extend(equal.statements)
             equal_identifiers.append(equal.identifier)
 
-        combinations = []
-        for i in range(len(equal_identifiers)):
-            for j in range(i+1, len(equal_identifiers)):
-                combinations.append("(%s %s %s)" % (equal_identifiers[i], op, equal_identifiers[j]))
-
-        return "%s" % self.op_bool_and().join(combinations) 
+        return self.stmt_bool_chain(equal_identifiers, op)
 
 
 class IfElseBlock(CodeBlock):

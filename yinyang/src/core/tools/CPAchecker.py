@@ -45,6 +45,8 @@ class CPAchecker(Tool):
             return SolverResult(SolverQueryResult.UNSAT)
         elif "Verification result: UNKNOWN" in self.stdout:
             return SolverResult(SolverQueryResult.UNKNOWN)
+        elif "Analysis interrupted" in self.stdout:
+            return SolverResult(SolverQueryResult.UNKNOWN)
         else:
             return ERR_COMPILATION
     
