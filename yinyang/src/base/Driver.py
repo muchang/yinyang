@@ -136,6 +136,7 @@ def run_checks(parser, strategy):
     args = parser.parse_args()
     if not args.PATH_TO_SEEDS:
         parser.error("no seed-file/seed folder specified")
+    print(args)
 
     check_solver_clis()
     check_timeout()

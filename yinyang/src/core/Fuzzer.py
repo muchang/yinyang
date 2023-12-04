@@ -163,8 +163,12 @@ class Fuzzer:
             for i in range(self.args.iterations):
                 self.print_stats()
                 if self.mutator is not None:
-                    mutant, success, skip_seed = self.mutator.mutate()
-                    self.generate_mutator(seed)
+                    try:
+                        mutant, success, skip_seed = self.mutator.mutate()
+                        self.generate_mutator(seed)
+                    except Exception as e:
+                        print(e)
+                        continue
                 else:
                     formula = self.get_script(seed)
                     mutant, success, skip_seed = formula, True, False
