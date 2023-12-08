@@ -212,7 +212,7 @@ def add_yinyang_args(parser, rootpath, current_dir):
     parser.add_argument(
         "-i",
         "--iterations",
-        default=30,
+        default=1,
         metavar="<N>",
         type=int,
     )

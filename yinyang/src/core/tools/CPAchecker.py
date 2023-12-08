@@ -47,6 +47,8 @@ class CPAchecker(Tool):
             return SolverResult(SolverQueryResult.UNKNOWN)
         elif "Analysis interrupted" in self.stdout:
             return SolverResult(SolverQueryResult.UNKNOWN)
+        elif "Could not load automaton from file" in self.stdout:
+            return SolverResult(SolverQueryResult.UNKNOWN)
         else:
             return ERR_COMPILATION
     
