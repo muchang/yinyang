@@ -20,19 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import random
-import re
 import pathlib
 
 from yinyang.src.base.Utils import in_list
 
-try:
-    sys.path.insert(1, os.getcwd() + "/.yinyang")
-    from yinyang.config import crash_list, duplicate_list, ignore_list
-except Exception as e:
-    from yinyang.config.Config import crash_list, duplicate_list, ignore_list
-
-from yinyang.src.core.Solver import SolverResult, SolverQueryResult
-
+from yinyang.config.Config import crash_list, duplicate_list, ignore_list
+from yinyang.src.core.tools.Solver import SolverResult, SolverQueryResult
 
 def in_crash_list(stdout, stderr):
     return in_list(stdout, stderr, crash_list)
@@ -54,24 +47,6 @@ def admissible_seed_size(seed, args):
     seed_size_in_bytes = pathlib.Path(seed).stat().st_size
     return seed_size_in_bytes < args.file_size_limit
 
-
-def grep_result(stdout):
-    """
-    Grep the result from the stdout of a solver.
-    """
-    result = SolverResult()
-    for line in stdout.splitlines():
-        if re.search("^unsat$", line, flags=re.MULTILINE):
-            result.append(SolverQueryResult.UNSAT)
-        elif re.search("^sat$", line, flags=re.MULTILINE):
-            result.append(SolverQueryResult.SAT)
-        elif re.search("^unknown$", line, flags=re.MULTILINE):
-            result.append(SolverQueryResult.UNKNOWN)
-        elif re.search("^timeout$", line, flags=re.MULTILINE):
-            result.append(SolverQueryResult.UNKNOWN)
-    return result
-
-
 def get_seeds(args, strategy):
     initial_seeds = args.PATH_TO_SEEDS
     num_initial = len(initial_seeds)
@@ -92,7 +67,6 @@ def get_permutation_generator(seeds):
         random.shuffle(seeds_copy)
         for b in seeds_copy:
             yield a, b
-
 
 def init_oracle(args):
     """

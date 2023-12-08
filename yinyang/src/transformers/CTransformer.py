@@ -20,11 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import copy
 
 from yinyang.src.transformers.Transformer import (
     Transformer, CodeBlock, Context, Environment,
-    IfElseBlock, ImpliesBlock, AndBlock, OrBlock, XorBlock, Tuple
+    IfElseBlock, ImpliesBlock, AndBlock, XorBlock, OrBlock, Tuple
 )
 from yinyang.src.transformers.Util import normalize_var_name
 from yinyang.src.parsing.Ast import Term
@@ -36,7 +35,7 @@ from yinyang.src.parsing.Types import (
 
 global_text = ""
 
-class DafnyCodeBlock(CodeBlock):
+class CCodeBlock(CodeBlock):
 
     def left_bracket(self) -> str:
         return super().left_bracket()
@@ -49,7 +48,7 @@ class DafnyCodeBlock(CodeBlock):
     
     def bool_false(self) -> str:
         return "false"
-
+    
     def op_equal(self) -> str:
         return " == "
     
@@ -67,7 +66,7 @@ class DafnyCodeBlock(CodeBlock):
     
     def op_bool_gt(self) -> str:
         return super().op_bool_gt()
-
+    
     def op_bool_lte(self) -> str:
         return super().op_bool_lte()
     
@@ -78,10 +77,10 @@ class DafnyCodeBlock(CodeBlock):
         return "%s[%s]" % (array, idx)
 
     def type_int(self) -> str:
-        return "int"
+        return "long"
     
     def type_real(self) -> str:
-        return "real"
+        return "double"
 
     def num_zero(self) -> str:
         return super().num_zero()
@@ -100,15 +99,51 @@ class DafnyCodeBlock(CodeBlock):
     
     def arith_div(self) -> str:
         return super().arith_div()
-
+    
     def arith_mod(self) -> str:
         return super().arith_mod()
 
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
-        return "var %s := %s;" % (identifier, assignee)
+        return "int %s = %s;" % (identifier, assignee)
 
     def stmt_init_var(self, identifier:str, assignee:str) -> str:
-        return "var %s := %s;" % (identifier, assignee)
+        if self.args.real_support:
+            return "%s %s = %s;" % (self.type_real(),identifier, assignee)
+        else:
+            return "%s %s = %s;" % (self.type_int(), identifier, assignee)
+
+    def stmt_init_array(self, identifier:str, length:int) -> str:
+        if self.args.real_support:
+            return "%s %s[%s];" % (self.type_real(), identifier, len(self.expression.subterms))
+        else:
+            return "%s %s[%s];" % (self.type_int(), identifier, len(self.expression.subterms))
+    
+    def stmt_assign(self, identifier:str, assignee:str) -> str:
+        return "%s = %s;" % (identifier, assignee)
+        
+    def stmt_bool_chain(self, identifiers:list, op) -> str:
+        if self.args.real_support and op in [self.op_equal(), self.op_bool_gte(), self.op_bool_lte()]:
+            combinations = []
+            for i in range(len(identifiers)):
+                for j in range(i+1, len(identifiers)):
+                    if op == self.op_equal():
+                        combo = "(fabs(%s - %s) < 0.00000001)" % (identifiers[i], identifiers[j]) 
+                    elif op == self.op_bool_gte():
+                        combo = "(%s+0.00000001 %s %s)" % (identifiers[i], op, identifiers[j])
+                    elif op == self.op_bool_lte():
+                        combo = "(%s %s %s+0.00000001)" % (identifiers[i], op, identifiers[j])
+                    else:
+                        raise Exception("Unsupported operator: %s" % op)
+                    combinations.append(combo)
+            return "%s" % self.op_bool_and().join(combinations)
+        else:
+            return super().stmt_bool_chain(identifiers, op)
+    
+    def stmt_distinct_chain(self, identifiers: list) -> str:
+        return super().stmt_distinct_chain(identifiers)
+    
+    def stmt_negation(self, identifier:str) -> str:
+        return "! %s" % (identifier)
     
     def stmt_assert(self, identifier:str) -> str:
         return "assert (%s);" % (identifier)
@@ -116,47 +151,29 @@ class DafnyCodeBlock(CodeBlock):
     def stmt_break(self) -> str:
         return "break;"
 
-    def stmt_init_array(self, identifier:str, length:int) -> str:
-        if self.args.real_support:
-            return "var %s := new %s[%s];" % (identifier, self.type_real(), length)
-        else:
-            return "var %s := new %s[%s];" % (identifier, self.type_int(), length)
-
-    def stmt_assign(self, identifier:str, assignee:str) -> str:
-        return "%s := %s;" % (identifier, assignee)
+    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list, str]:
+        ifelseblock = CIfElseBlock(self.tmpid, self.env, self.context, self.args, condition, truevalue, falsevalue)
+        return ifelseblock.statements, ifelseblock.identifier
     
-    def stmt_equal_chain(self, identifiers:list) -> str:
-        return " == ".join(identifiers)
+    def block_implication(self) -> Tuple[list, str]:
+        implitesblock = CImpliesBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+        return implitesblock.statements, implitesblock.identifier
 
-    def stmt_distinct_chain(self, identifiers: list) -> str:
-        return super().stmt_distinct_chain(identifiers)
-    
-    def stmt_negation(self, identifier:str) -> str:
-        return "! %s" % (identifier)
-    
-    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list[str], str]:
-        return [], "if %s then %s else %s" % (condition, truevalue, falsevalue)
-
-    def block_implication(self) -> Tuple[list[str], str]:
-        assignee = ""
-        statements = []
-        for subterm in self.expression.subterms:
-            implication = DafnyCodeBlock(self.tmpid, self.env, self.context, self.args, subterm)
-            statements.extend(implication.statements)
-            assignee += str(implication.identifier) + " ==> "
-        return statements, assignee[:-5]
-
-    def block_and(self) -> Tuple[list[str], str]:
-        andblock = DafnyAndBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+    def block_and(self) -> Tuple[list, str]:
+        assert self.expression.op == AND
+        andblock = CAndBlock(self.tmpid, self.env, self.context, self.args, self.expression)
         return andblock.statements, andblock.identifier
     
-    def block_or(self) -> Tuple[list[str], str]:
-        orblock = DafnyOrBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+    def block_or(self) -> Tuple[list, str]:
+        orblock = COrBlock(self.tmpid, self.env, self.context, self.args, self.expression)
         return orblock.statements, orblock.identifier
     
-    def block_xor(self) -> Tuple[list[str], str]:
-        xorblock = DafnyXorBlock(self.tmpid, self.env, self.context, self.args, self.expression)
+    def block_xor(self) -> Tuple[list, str]:
+        xorblock = CXorBlock(self.tmpid, self.env, self.context, self.args, self.expression)
         return xorblock.statements, xorblock.identifier
+
+    def stmts_while(self, condition:str, statements:list) -> list:
+        return ["while (%s) {" % condition] + statements + ["}"]
 
     def stmts_if_else(self, condition:str, tstatements:list, fstatements:list) -> list:
         statements = []
@@ -168,49 +185,56 @@ class DafnyCodeBlock(CodeBlock):
             statements.extend(fstatements)
             statements.append("}")
         return statements
-    
-    def stmts_while(self, condition:str, statements:list) -> list:
-        return ["while (%s) {" % condition] + statements + ["}"]
-    
-    def stmt_bool_chain(self, identifiers:list, op) -> str:
-        return super().stmt_bool_chain(identifiers, op)
 
     def create_codeblock(self, tmpid, env, context, args, expression: Term, identifier=None) -> CodeBlock:
-        return DafnyCodeBlock(tmpid, env, context, args, expression, identifier)
+        return CCodeBlock(tmpid, env, context, args, expression, identifier)
 
-class DafnyAndBlock(AndBlock, DafnyCodeBlock):
+class CIfElseBlock(CCodeBlock, IfElseBlock):
     pass
 
-class DafnyOrBlock(OrBlock, DafnyCodeBlock):
+class CImpliesBlock(CCodeBlock, ImpliesBlock):
     pass
 
-class DafnyXorBlock(XorBlock, DafnyCodeBlock):
+class CAndBlock(CCodeBlock, AndBlock):
     pass
 
-class DafnyTransformer(DafnyCodeBlock, Transformer):
+class COrBlock(CCodeBlock, OrBlock):
+    pass
+
+class CXorBlock(CCodeBlock, XorBlock):
+    pass
+
+class CTransformer(CCodeBlock, Transformer):
 
     def stmt_method_head(self) -> str:
         args_items = []
         for var in self.context.free_vars:
-            args_items.append("%s:%s" % (normalize_var_name(str(var)), self.convert_type(self.context.free_vars[var])))
+            args_items.append("%s %s" % (self.convert_type(self.context.free_vars[var]),normalize_var_name(str(var))))
         for var in self.env.div_vars:
-            args_items.append("%s:%s" % (normalize_var_name(str(var)), self.env.div_vars[var]))
+            args_items.append("%s %s" % (self.env.div_vars[var], normalize_var_name(str(var))))
         args_text = "(%s)" % ",".join(args_items)
-        return "method %s %s" % (self.name, args_text)
-    
+        return "void %s %s" % (self.name, args_text)
 
     def convert_type(self, smt_type):
         if smt_type == "Int":
-            return "int"
+            return "long"
         elif smt_type == "Real":
-            return "real"
+            return "double"
         elif smt_type == "Bool":
             return "bool"
         else:
             raise Exception("Unsupported type: %s" % smt_type)
     
     def stmts_file_head(self) -> list:
-        return []
-
+        return ["#include <assert.h>",
+                "#include <stdbool.h>",
+                "#include <math.h>"]
+    
     def stmts_function_head(self) -> list:
-        return []
+        head = []
+        for var in self.context.free_vars:
+            if self.context.free_vars[var] == "Real":
+                head.append("if (isnan(%s) || isinf(%s)) return;" % (normalize_var_name(str(var)), normalize_var_name(str(var))))
+            elif self.context.free_vars[var] == "Bool":
+                head.append("if (%s != false) %s = true;" % (normalize_var_name(str(var)), normalize_var_name(str(var))))
+        return head

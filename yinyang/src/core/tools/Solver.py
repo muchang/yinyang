@@ -20,11 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import subprocess
+import re
 from enum import Enum
-
-from yinyang.src.base.Exitcodes import ERR_USAGE
-
+from yinyang.src.base.Utils import in_list
+from yinyang.src.core.Tool import Tool
+from yinyang.config.Config import crash_list
+from yinyang.src.core.Logger import log_ignore_list_mutant
 
 class SolverQueryResult(Enum):
     """
@@ -43,6 +44,8 @@ def sr2str(sol_res):
         return "unsat"
     if sol_res == SolverQueryResult.UNKNOWN:
         return "unknown"
+    else:
+        return "error"
 
 
 class SolverResult:
@@ -83,46 +86,42 @@ class SolverResult:
         return s
 
 
-class Solver:
+class Solver(Tool):
+
     def __init__(self, cil):
-        self.cil = cil
+        super().__init__(cil)
+        self.result = SolverResult(SolverQueryResult.UNKNOWN)
 
-    def solve(self, file, timeout, debug=False):
-        try:
-            cmd = list(filter(None, self.cil.split(" "))) + [file]
-            if debug:
-                print("cmd: " + " ".join(cmd), flush=True)
-            output = subprocess.run(
-                cmd,
-                timeout=timeout,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=False,
-            )
+    def cmd(self, file:str) -> list:
+        return list(filter(None, self.cil.split(" "))) + [file]
+    
+    def run(self, file: str, timeout: int, debug=False) -> None:
+        super().run(file, timeout, debug)
+        self.result = self.get_result()
+        return
 
-        except subprocess.TimeoutExpired as te:
-            if te.stdout and te.stderr:
-                stdout = te.stdout.decode()
-                stderr = te.stderr.decode()
-            else:
-                stdout = ""
-                stderr = ""
-            return stdout, stderr, 137
+    def get_result(self):
 
-        except ValueError:
-            stdout = ""
-            stderr = ""
-            return stdout, stderr, 0
+        if in_list(self.stdout, self.stderr, crash_list):
+            log_ignore_list_mutant((self.cil))
+            return SolverResult(SolverQueryResult.UNKNOWN)
 
-        except FileNotFoundError:
-            print('error: solver "' + cmd[0] + '" not found', flush=True)
-            exit(ERR_USAGE)
-
-        stdout = output.stdout.decode()
-        stderr = output.stderr.decode()
-        returncode = output.returncode
-
-        if debug:
-            print("output: " + stdout + "\n" + stderr)
-
-        return stdout, stderr, returncode
+        if (
+            not re.search("^unsat$", self.stdout, flags=re.MULTILINE)
+            and not re.search("^sat$", self.stdout, flags=re.MULTILINE)
+            and not re.search("^unknown$", self.stdout, flags=re.MULTILINE)
+        ):
+            return SolverResult(SolverQueryResult.UNKNOWN)
+        
+        result = SolverResult()
+        for line in self.stdout.splitlines():
+            if re.search("^unsat$", line, flags=re.MULTILINE):
+                result.append(SolverQueryResult.UNSAT)
+            elif re.search("^sat$", line, flags=re.MULTILINE):
+                result.append(SolverQueryResult.SAT)
+            elif re.search("^unknown$", line, flags=re.MULTILINE):
+                result.append(SolverQueryResult.UNKNOWN)
+            elif re.search("^timeout$", line, flags=re.MULTILINE):
+                result.append(SolverQueryResult.UNKNOWN)
+                
+        return result
