@@ -27,16 +27,14 @@ class Script:
     def __init__(self, commands, global_vars):
         self.commands = commands
         self.vars, self.types = self._decl_commands()
-        self.global_vars = global_vars
+        self.global_vars = copy.deepcopy(global_vars)
         self.free_var_occs = []
         self.op_occs = []
         self.assert_cmd = []
 
         for cmd in self.commands:
             if isinstance(cmd, Assert):
-                globs_ = copy.deepcopy(self.global_vars)
-                self._get_free_var_occs(cmd.term, self.global_vars)
-                self.global_vars = globs_
+                self._get_free_var_occs(cmd.term)  # WARNING: new syntax!
                 self._get_op_occs(cmd.term)
                 self.assert_cmd.append(cmd)
 
@@ -54,34 +52,50 @@ class Script:
         for sub in e.subterms:
             self._get_op_occs(sub)
 
-    def _get_free_var_occs(self, e, global_vars):
-        if isinstance(e, str):
-            return
-        if e.is_const:
-            return
-        if e.label:
-            return
-        if e.quantifier:
-            for var in list(global_vars):
-                for quantified_var in e.quantified_vars[0]:
-                    if var == quantified_var:
-                        global_vars.pop(var)
+    """
+    WARNING: second parameter is for bound variables!!
+    (It used to be for all global variables)
+    """
+    def _get_free_var_occs(self, expr, S: set = set()) -> None:
+        # TODO: Make sure this fully complies with 'Term' datastructure
+        """
+        Bottom-up approach.
+        Keep track of bound variables in a set 'S' (empty to start with)
+        """
+        assert isinstance(S, set)
+        for x in S:
+            assert isinstance(x, str), "Bound vars set must contain strings"
 
-        if e.var_binders:
-            for var in list(global_vars):
-                for let_var in e.var_binders:
-                    if var == let_var:
-                        global_vars.pop(var)
-            for let_term in e.let_terms:
-                self._get_free_var_occs(let_term, global_vars)
-
-        if e.is_var:
-            if e.name in global_vars:
-                self.free_var_occs.append(e)
+        if expr.is_const:
             return
-
-        for sub in e.subterms:
-            self._get_free_var_occs(sub, global_vars)
+        if expr.is_var and str(expr) not in S:
+            self.free_var_occs.append(expr)
+        if expr.label:
+            return
+        # TODO: indices
+        # TODO: is_indexed_id?
+        copied_S = False
+        if expr.quantifier:
+            if len(expr.quantified_vars[0]) > 0:
+                # Make a copy of S before modifying it,
+                # as other stackframes are using it too!
+                S = copy.deepcopy(S)
+                copied_S = True
+            for v in expr.quantified_vars[0]:  # 0: [names], 1: [types]
+                S.add(str(v))
+        if expr.var_binders:
+            if len(expr.var_binders) > 0 and not copied_S:
+                # Make a copy of S before modifying it, but only
+                # if it hasn't been done already (performance)
+                S = copy.deepcopy(S)
+            for v in expr.var_binders:
+                S.add(str(v))
+            for t in expr.let_terms:
+                # TODO: what exactly is this, how does it differ from subterms?
+                self._get_free_var_occs(t, S)
+        if expr.subterms:
+            for t in expr.subterms:
+                self._get_free_var_occs(t, S)
 
     def _decl_commands(self):
         vars, types = [], {}
@@ -100,7 +114,7 @@ class Script:
             return
         if e.is_const:
             return
-        if e.is_var and e.type:
+        if e.is_var and e.ttype:
             if e in self.free_var_occs:
                 e.name = prefix + e.name
             return
@@ -235,15 +249,6 @@ class Comment:
 
     def __str__(self):
         return "; " + self.txt
-
-
-class Define:
-    def __init__(self, symbol, term):
-        self.term = term
-        self.symbol = symbol
-
-    def __str__(self):
-        return "(define " + self.symbol + " " + self.term.__str__() + ")"
 
 
 class DefineConst:
@@ -474,13 +479,15 @@ class SMTLIBCommand:
         return self.cmd_str.__hash__()
 
 
-def Var(name, type, is_indexed_id=False):
-    return Term(name=name, type=type, is_var=True, is_indexed_id=is_indexed_id)
-
-
-def Const(name, is_indexed_id=False, type="Unknown"):
+def Var(name, ttype, is_indexed_id=False):
     return Term(
-        name=name, type=type, is_const=True, is_indexed_id=is_indexed_id
+        name=name, ttype=ttype, is_var=True, is_indexed_id=is_indexed_id
+    )
+
+
+def Const(name, is_indexed_id=False, ttype="Unknown"):
+    return Term(
+        name=name, ttype=ttype, is_const=True, is_indexed_id=is_indexed_id
     )
 
 
@@ -518,7 +525,7 @@ class Term:
     def __init__(
         self,
         name=None,
-        type=None,
+        ttype=None,
         is_const=None,
         is_var=None,
         label=None,
@@ -533,9 +540,15 @@ class Term:
         parent=None,
     ):
 
+        # Check whether subterms are correctly represented
+        if subterms is not None:
+            for term in subterms:
+                assert isinstance(term, Term),\
+                    f"term '{str(term)}' represented as '{type(term)}' in AST"
+
         self._initialize(
             name=name,
-            type=type,
+            ttype=ttype,
             is_const=is_const,
             is_var=is_var,
             indices=indices,
@@ -554,7 +567,7 @@ class Term:
     def _initialize(
         self,
         name=None,
-        type=None,
+        ttype=None,
         is_const=None,
         is_var=None,
         label=None,
@@ -569,7 +582,7 @@ class Term:
         parent=None,
     ):
         self.name = name
-        self.type = type
+        self.ttype = ttype
         self.is_const = is_const
         self.is_var = is_var
         self.label = label
@@ -589,8 +602,7 @@ class Term:
         """
         if self.subterms:
             for term in self.subterms:
-                if not isinstance(term, str):
-                    term.parent = self
+                term.parent = self
 
     def find_all(self, e, occs):
         """
@@ -614,7 +626,7 @@ class Term:
         for occ in occs:
             occ._initialize(
                 name=copy.deepcopy(repl.name),
-                type=copy.deepcopy(repl.type),
+                ttype=copy.deepcopy(repl.ttype),
                 is_const=copy.deepcopy(repl.is_const),
                 is_var=copy.deepcopy(repl.is_var),
                 label=copy.deepcopy(repl.label),
@@ -634,7 +646,7 @@ class Term:
             return False
         if self.name != other.name:
             return False
-        if self.type != other.type:
+        if self.ttype != other.ttype:
             return False
         if self.is_const != other.is_const:
             return False
@@ -648,7 +660,7 @@ class Term:
             return False
         if self.quantified_vars != other.quantified_vars:
             return False
-        if self.type != other.type:
+        if self.ttype != other.ttype:
             return False
         if self.is_var != other.is_var:
             return False
@@ -720,4 +732,4 @@ class Term:
             return self.name
 
         if self.is_var:
-            return self.name + ":" + self.type
+            return self.name + ":" + str(self.ttype)

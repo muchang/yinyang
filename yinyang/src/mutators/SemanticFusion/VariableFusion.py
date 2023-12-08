@@ -125,30 +125,30 @@ def get_constant_value(declare_const):
         r = random.randint(-1000, 1000)
         if r < 0:
             return Expr(op="-",
-                        subterms=[Const(name=str(-r), type=const_type)])
+                        subterms=[Const(name=str(-r), ttype=const_type)])
         else:
-            return Const(name=str(r), type=const_type)
+            return Const(name=str(r), ttype=const_type)
 
     if const_type == REAL_TYPE:
         r = round(random.uniform(-1000, 1000), 5)
         if r < 0:
             return Expr(op="-",
-                        subterms=[Const(name=str(-r), type=const_type)])
+                        subterms=[Const(name=str(-r), ttype=const_type)])
         else:
-            return Const(str(r), type=const_type)
+            return Const(str(r), ttype=const_type)
 
     if const_type == BOOLEAN_TYPE:
-        return Const(random.choice(["true", "false"]), type=const_type)
+        return Const(random.choice(["true", "false"]), ttype=const_type)
 
     if const_type == STRING_TYPE:
         length = random.randint(0, 20)
-        return Const('"' + gen_random_string(length) + '"', type=const_type)
+        return Const('"' + gen_random_string(length) + '"', ttype=const_type)
 
     if isinstance(const_type, BITVECTOR_TYPE):
         length = const_type.bitwidth
         return Const(
             f"#b{random.getrandbits(length):0{length}b}",
-            type=const_type,
+            ttype=const_type,
         )
 
 
@@ -197,7 +197,7 @@ def fill_template(xs, ys, z_name, template):
 
     # Bind occurrences of variables to template
     for ass in filled_template.commands[first_ass_idx:]:
-        ass.term.substitute(Var("z", z.type), z)
+        ass.term.substitute(Var("z", z.ttype), z)
         for x in xs:
             # To be valid, an assignment of variables of the
             # template variables to the seeds variables

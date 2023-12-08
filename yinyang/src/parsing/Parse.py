@@ -114,8 +114,11 @@ def parse_filestream(fn, timeout_limit):
     @exit_after(timeout_limit)
     def _parse_filestream(fn):
         fstream = FileStream(fn, encoding="utf8")
-        ast, globs, defines = generate_ast(fstream)
-        return ast, globs, defines
+        attempt = generate_ast(fstream)
+        if attempt is not None:
+            ast, globs, defines = attempt
+            return ast, globs, defines
+        return None
 
     return _parse_filestream(fn)
 
@@ -124,8 +127,11 @@ def parse_inputstream(s, timeout_limit):
     @exit_after(timeout_limit)
     def _parse_inputstream(s):
         istream = InputStream(s)
-        ast, globs, defines = generate_ast(istream)
-        return ast, globs, defines
+        attempt = generate_ast(istream)
+        if attempt is not None:
+            ast, globs, defines = attempt
+            return ast, globs, defines
+        return None
 
     return _parse_inputstream(s)
 
