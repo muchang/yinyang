@@ -23,6 +23,8 @@ from copy import deepcopy
 from typing import Tuple
 from argparse import Namespace
 from abc import ABC, abstractmethod
+from yinyang.src.parsing.Types import BOOLEAN_TYPE, REAL_TYPE, INTEGER_TYPE
+from yinyang.src.parsing.Typechecker import typecheck_expr
 
 
 from yinyang.src.parsing.Types import (
@@ -192,7 +194,7 @@ class CodeBlock(ABC):
         assert(0)
     
     @abstractmethod
-    def stmt_init_var(self, identifier:str, assignee:str) -> str:
+    def stmt_init_var(self, identifier:str, assignee:str, ttype) -> str:
         assert(0)
     
     @abstractmethod
@@ -306,23 +308,23 @@ class CodeBlock(ABC):
             elif self.expression.op == None:
                 if self.assignee in self.context.free_vars:
                     if self.context.free_vars[self.assignee] == "Real" or self.context.free_vars[self.assignee] == "Int":
-                        self.statements.append(self.stmt_init_var(self.identifier, self.assignee))
+                        self.statements.append(self.stmt_init_var(self.identifier, self.assignee, self.context.free_vars[self.assignee]))
                     else:
                         self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
                 elif str.isdigit(str(self.assignee).replace(".", "")):
-                    self.statements.append(self.stmt_init_var(self.identifier, self.assignee))
+                    self.statements.append(self.stmt_init_var(self.identifier, self.assignee, self.expression.ttype))
                 elif self.assignee == self.bool_true() or self.assignee == self.bool_false():
                     self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
-                elif self.expression.type == self.type_real() or self.expression.type == self.type_int():
-                    self.statements.append(self.stmt_init_var(self.identifier, self.num_real(self.assignee)))
-                elif self.expression.type == "Bool":
+                elif self.expression.ttype == self.type_real() or self.expression.ttype == self.type_int():
+                    self.statements.append(self.stmt_init_var(self.identifier, self.num_real(self.assignee), self.expression.ttype))
+                elif self.expression.ttype == "Bool":
                     self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
                 elif self.assignee in self.context.let_vars:
-                    self.statements.append(self.stmt_init_var(self.identifier, self.context.let_vars[self.assignee]))
+                    self.statements.append(self.stmt_init_var(self.identifier, self.context.let_vars[self.assignee], self.expression.ttype))
                 else:
-                    self.statements.append(self.stmt_init_var(self.identifier, self.assignee))
+                    self.statements.append(self.stmt_init_var(self.identifier, self.assignee, self.expression.ttype))
             else:
-                self.statements.append(self.stmt_init_var(self.identifier, self.assignee))
+                self.statements.append(self.stmt_init_var(self.identifier, self.assignee, self.expression.ttype))
 
     def init_block(self):
 
@@ -435,7 +437,7 @@ class CodeBlock(ABC):
                 if letvar in self.context.let_vars:
                     self.statements.append(self.stmt_assign(letvar, letterm.identifier))
                 else:
-                    self.statements.append(self.stmt_init_var(letvar, letterm.identifier))
+                    self.statements.append(self.stmt_init_var(letvar, letterm.identifier, self.expression.let_terms[let_term_idx].ttype))
                 self.context.let_vars[letvar] = letterm.identifier
 
             letblock = self.create_codeblock(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
@@ -541,7 +543,7 @@ class IfElseBlock(CodeBlock):
         super().__init__(tmpid, env, context, args, Term(), identifier)
 
     def init_block(self):
-        self.statements.append(self.stmt_init_var(self.identifier, self.falsevalue))
+        self.statements.append(self.stmt_init_bool(self.identifier, self.falsevalue))
         self.statements.extend(self.stmts_if_else(self.condition, [self.stmt_assign(self.identifier, self.truevalue)], []))
 
 class ImpliesBlock(CodeBlock):
@@ -561,7 +563,7 @@ class ImpliesBlock(CodeBlock):
             self.statements.extend(self.stmts_if_else(condition.identifier, [tstatement], [fstatement]))
             self.assignee = ""
         else:
-            subblock = self.create_codeblock(self.tmpid, self.env, self.context, self.args, Term(op="=>", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+            subblock = self.create_codeblock(self.tmpid, self.env, self.context, self.args, Term(op="=>", subterms=self.expression.subterms[1:], ttype=BOOLEAN_TYPE), identifier=self.identifier)
             self.statements.extend(self.stmts_if_else(condition.identifier, subblock.statements, []))
 
 class AndBlock(CodeBlock):
@@ -579,7 +581,7 @@ class AndBlock(CodeBlock):
         if len(self.expression.subterms) == 1:
             statements.append(self.stmt_assign(self.identifier, self.bool_true()))
         else:
-            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="and", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="and", subterms=self.expression.subterms[1:], ttype=BOOLEAN_TYPE), identifier=self.identifier)
             statements.extend(subblock.statements)
         statements.append(self.stmt_break())
         
@@ -597,7 +599,7 @@ class OrBlock(CodeBlock):
 
         statements = []
         if len(self.expression.subterms) != 1:
-            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="or", subterms=self.expression.subterms[1:]), identifier=self.identifier)
+            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="or", subterms=self.expression.subterms[1:], ttype=BOOLEAN_TYPE), identifier=self.identifier)
             statements.extend(subblock.statements)
         
         self.statements.extend(self.stmts_if_else(condition.identifier, [self.stmt_assign(self.identifier, self.bool_true())], statements))
@@ -631,14 +633,14 @@ class XorBlock(CodeBlock):
         if len(self.expression.subterms) == 1:
             tstatements.append(self.stmt_assign(self.identifier, self.get_truth(True)))
         else:
-            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=not self.truth)
+            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="xor", subterms=self.expression.subterms[1:], ttype=BOOLEAN_TYPE), identifier=self.identifier, truth=not self.truth)
             tstatements.extend(subblock.statements)
         
         fstatements = []
         if len(self.expression.subterms) == 1:
             self.statements.append(self.stmt_assign(self.identifier, self.get_truth(False)))
         else:
-            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="xor", subterms=self.expression.subterms[1:]), identifier=self.identifier, truth=self.truth)
+            subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="xor", subterms=self.expression.subterms[1:], ttype=BOOLEAN_TYPE), identifier=self.identifier, truth=self.truth)
             fstatements.extend(subblock.statements)
         
         self.statements.extend(self.stmts_if_else(condition.identifier, tstatements, fstatements))
@@ -680,7 +682,7 @@ class Transformer(CodeBlock):
         for assert_cmd in self.assert_cmds:
             self.assert_terms.append(assert_cmd.term)
         
-        formula_term = Term(op="and", subterms=self.assert_terms)
+        formula_term = Term(op="and", subterms=self.assert_terms, ttype=BOOLEAN_TYPE)
         formula = self.create_codeblock(self.tmpid, self.env, self.context, self.args, formula_term, identifier="oracle")
         
         self.defined_assertions = []
@@ -698,7 +700,7 @@ class Transformer(CodeBlock):
             if assertion[2] == "bool":
                 self.statements.append(self.stmt_init_bool(assertion[0], assertion[1].identifier))
             else:    
-                self.statements.append(self.stmt_init_var(assertion[0], assertion[1].identifier))
+                self.statements.append(self.stmt_init_var(assertion[0], assertion[1].identifier, self.expression.ttype))
         
         self.statements.extend(formula.statements)
         self.statements.append(self.stmt_assert(self.stmt_negation("oracle")))

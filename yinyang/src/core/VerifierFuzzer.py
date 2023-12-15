@@ -43,6 +43,7 @@ from yinyang.src.transformers.Util import MaxTmpIDException
 from yinyang.src.core.tools.Solver import Solver, SolverQueryResult, SolverResult
 from yinyang.src.base.Exitcodes import ERR_INTERNAL,ERR_COMPILATION,OK_TIMEOUT
 from yinyang.src.parsing.Parse import parse_file
+from yinyang.src.parsing.Typechecker import typecheck
 
 from yinyang.src.base.Utils import random_string, plain, escape
 from yinyang.src.base.Exitcodes import ERR_EXHAUSTED_DISK
@@ -81,7 +82,9 @@ class VerifierFuzzer(Fuzzer, ABC):
         with open(scratchsmt, "w") as testcase_writer:
             testcase_writer.write(script.__str__())
 
-        try: formula = parse_file(scratchsmt)
+        try: 
+            formula = parse_file(scratchsmt)
+            typecheck(formula[0], formula[1], 30)
         except: return False, "Parse failed"
 
         solver_cli = self.args.SOLVER_CLIS[0]

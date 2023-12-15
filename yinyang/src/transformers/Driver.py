@@ -10,6 +10,7 @@ from yinyang.src.transformers.Util import MaxTmpIDException
 from yinyang.src.transformers.CTransformer import CTransformer
 from yinyang.src.transformers.DafnyTransformer import DafnyTransformer
 from yinyang.src.parsing.Parse import parse_file
+from yinyang.src.parsing.Typechecker import typecheck
 
 import argparse
 
@@ -73,6 +74,7 @@ args = parser.parse_args()
 
 print(args.smtfile)
 formula = parse_file(args.smtfile)
+typecheck(formula[0], formula[1], 30)
 transformer = None
 if args.language == "c":
     transformer = CTransformer(formula, args)

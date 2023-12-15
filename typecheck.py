@@ -10,7 +10,7 @@ if len(sys.argv) < 2:
     exit(2)
 
 def typecheck_smt2(fn):  
-    script, glob = parse_file(fn, silent=True)
+    script, glob, _ = parse_file(fn, silent=True)
 
     # Make sure parsing did not time out or crash
     if script is None:

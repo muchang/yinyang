@@ -107,7 +107,7 @@ class DafnyCodeBlock(CodeBlock):
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         return "var %s := %s;" % (identifier, assignee)
 
-    def stmt_init_var(self, identifier:str, assignee:str) -> str:
+    def stmt_init_var(self, identifier:str, assignee:str, ttype) -> str:
         return "var %s := %s;" % (identifier, assignee)
     
     def stmt_assert(self, identifier:str) -> str:

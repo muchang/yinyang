@@ -30,7 +30,8 @@ from yinyang.src.parsing.Ast import Term
 from yinyang.src.parsing.Types import (
     NOT, AND, IMPLIES, OR, XOR, EQUAL, DISTINCT, ITE,
     UNARY_MINUS, PLUS, ABS, MINUS, MULTIPLY, LT, GT, LTE, GTE, DIV, MOD, REAL_DIV,
-    FORALL, EXISTS
+    FORALL, EXISTS, REAL_TYPE,
+    INTEGER_TYPE, BOOLEAN_TYPE
 )
 
 global_text = ""
@@ -106,11 +107,15 @@ class CCodeBlock(CodeBlock):
     def stmt_init_bool(self, identifier:str, assignee:str) -> str:
         return "int %s = %s;" % (identifier, assignee)
 
-    def stmt_init_var(self, identifier:str, assignee:str) -> str:
-        if self.args.real_support:
+    def stmt_init_var(self, identifier:str, assignee:str, ttype) -> str:
+        if ttype == REAL_TYPE:
             return "%s %s = %s;" % (self.type_real(),identifier, assignee)
-        else:
+        elif ttype == INTEGER_TYPE:
             return "%s %s = %s;" % (self.type_int(), identifier, assignee)
+        elif ttype == BOOLEAN_TYPE:
+            return "%s %s = %s;" % ("int", identifier, assignee)
+        else:
+            raise Exception("Unsupported type: %s, %s" % (ttype, identifier))
 
     def stmt_init_array(self, identifier:str, length:int) -> str:
         if self.args.real_support:
