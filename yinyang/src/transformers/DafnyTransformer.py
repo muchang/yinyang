@@ -134,7 +134,7 @@ class DafnyCodeBlock(CodeBlock):
     def stmt_negation(self, identifier:str) -> str:
         return "! %s" % (identifier)
     
-    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list[str], str]:
+    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str, ttype) -> Tuple[list[str], str]:
         return [], "if %s then %s else %s" % (condition, truevalue, falsevalue)
 
     def block_implication(self) -> Tuple[list[str], str]:

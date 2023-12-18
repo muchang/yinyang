@@ -30,7 +30,7 @@ from yinyang.src.parsing.Typechecker import typecheck_expr
 from yinyang.src.parsing.Types import (
     NOT, AND, IMPLIES, OR, XOR, EQUAL, DISTINCT, ITE,
     UNARY_MINUS, PLUS, ABS, MINUS, MULTIPLY, LT, GT, LTE, GTE, DIV, MOD, REAL_DIV,
-    FORALL, EXISTS
+    FORALL, EXISTS, REAL_TYPE, INTEGER_TYPE, BOOLEAN_TYPE
 )
 from yinyang.src.parsing.Ast import Term
 from yinyang.src.transformers.Util import normalize_var_name, MaxTmpIDException
@@ -218,7 +218,7 @@ class CodeBlock(ABC):
         assert(0)
     
     @abstractmethod
-    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str) -> Tuple[list[str], str]:
+    def block_if_then_else(self, condition:str, truevalue:str, falsevalue:str, ttype) -> Tuple[list[str], str]:
         assert(0)
     
     @abstractmethod
@@ -338,7 +338,8 @@ class CodeBlock(ABC):
             self.statements.extend(branch1.statements)
             self.statements.extend(branch2.statements)
 
-            statements, self.assignee = self.block_if_then_else(condition.identifier, branch1.identifier, branch2.identifier)
+            
+            statements, self.assignee = self.block_if_then_else(condition.identifier, branch1.identifier, branch2.identifier, self.expression.ttype)
             self.statements.extend(statements)
 
     
@@ -396,7 +397,7 @@ class CodeBlock(ABC):
             abs = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             self.statements.extend(abs.statements)
 
-            statements, self.assignee = self.block_if_then_else("(%s %s %s)" % (abs.identifier, self.op_bool_lt(), self.num_zero()), "(%s %s)" % (self.arith_minus(), abs.identifier), abs.identifier)
+            statements, self.assignee = self.block_if_then_else("(%s %s %s)" % (abs.identifier, self.op_bool_lt(), self.num_zero()), "(%s %s)" % (self.arith_minus(), abs.identifier), abs.identifier, self.expression.ttype)
             self.statements.extend(statements)
         
         elif self.expression.op == GTE:
@@ -502,7 +503,7 @@ class CodeBlock(ABC):
         condition = self.op_bool_and().join(condition)
         expression = symbol.join(divisors)
 
-        statements, assignee = self.block_if_then_else(condition, expression, free_var)
+        statements, assignee = self.block_if_then_else(condition, expression, free_var, self.expression.ttype)
         self.statements.extend(statements)
         return assignee
 
@@ -536,14 +537,20 @@ class CodeBlock(ABC):
 
 class IfElseBlock(CodeBlock):
 
-    def __init__(self, tmpid: TmpID, env: Environment, context: Context, args, condition, truevalue, falsevalue, identifier=None):
+    def __init__(self, tmpid: TmpID, env: Environment, context: Context, args, condition, truevalue, falsevalue, ttype, identifier=None):
         self.condition = condition
         self.truevalue = truevalue
         self.falsevalue = falsevalue
+        self.ttype = ttype
         super().__init__(tmpid, env, context, args, Term(), identifier)
 
     def init_block(self):
-        self.statements.append(self.stmt_init_bool(self.identifier, self.falsevalue))
+        if self.ttype == BOOLEAN_TYPE:
+            self.statements.append(self.stmt_init_bool(self.identifier, self.falsevalue))
+        elif self.ttype == REAL_TYPE or self.ttype == INTEGER_TYPE:
+            self.statements.append(self.stmt_init_var(self.identifier, self.falsevalue, self.ttype))
+        else:
+            raise Exception("Unsupported type: %s" % self.ttype)
         self.statements.extend(self.stmts_if_else(self.condition, [self.stmt_assign(self.identifier, self.truevalue)], []))
 
 class ImpliesBlock(CodeBlock):
