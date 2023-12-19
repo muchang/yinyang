@@ -31,7 +31,7 @@ from yinyang.src.parsing.Ast import Term
 from yinyang.src.parsing.Types import (
     NOT, AND, IMPLIES, OR, XOR, EQUAL, DISTINCT, ITE,
     UNARY_MINUS, PLUS, ABS, MINUS, MULTIPLY, LT, GT, LTE, GTE, DIV, MOD, REAL_DIV,
-    FORALL, EXISTS
+    FORALL, EXISTS, REAL_TYPE
 )
 
 global_text = ""
@@ -83,8 +83,8 @@ class DafnyCodeBlock(CodeBlock):
     def type_real(self) -> str:
         return "real"
 
-    def num_zero(self) -> str:
-        return super().num_zero()
+    def num_zero(self, ttype) -> str:
+        return super().num_zero(ttype)
     
     def num_real(self, num) -> str:
         return super().num_real(num)
@@ -117,7 +117,7 @@ class DafnyCodeBlock(CodeBlock):
         return "break;"
 
     def stmt_init_array(self, identifier:str, length:int) -> str:
-        if self.args.real_support:
+        if self.expression.subterms[0].ttype == REAL_TYPE:
             return "var %s := new %s[%s];" % (identifier, self.type_real(), length)
         else:
             return "var %s := new %s[%s];" % (identifier, self.type_int(), length)

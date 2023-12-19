@@ -155,11 +155,13 @@ class CodeBlock(ABC):
         assert(0)
 
     @abstractmethod
-    def num_zero(self) -> str:
-        if self.args.real_support:
+    def num_zero(self, ttype) -> str:
+        if ttype == REAL_TYPE:
             return "0.0"
-        else:
+        elif ttype == INTEGER_TYPE:
             return "0"
+        else:
+            raise Exception("Unsupported type: %s" % ttype)
     
     @abstractmethod
     def num_real(self, num) -> str:
@@ -397,7 +399,7 @@ class CodeBlock(ABC):
             abs = self.__class__(self.tmpid, self.env, self.context, self.args, self.expression.subterms[0])
             self.statements.extend(abs.statements)
 
-            statements, self.assignee = self.block_if_then_else("(%s %s %s)" % (abs.identifier, self.op_bool_lt(), self.num_zero()), "(%s %s)" % (self.arith_minus(), abs.identifier), abs.identifier, self.expression.ttype)
+            statements, self.assignee = self.block_if_then_else("(%s %s %s)" % (abs.identifier, self.op_bool_lt(), self.num_zero(self.expression.subterms[0].ttype)), "(%s %s)" % (self.arith_minus(), abs.identifier), abs.identifier, self.expression.ttype)
             self.statements.extend(statements)
         
         elif self.expression.op == GTE:
@@ -467,7 +469,7 @@ class CodeBlock(ABC):
             
             if not str.isdigit(str(self.expression).replace(".", "")):
                 self.assignee = normalize_var_name(str(self.expression))
-            elif self.args.real_support:
+            elif self.expression.ttype == REAL_TYPE:
                 self.assignee = self.num_real(str(self.expression))
             else:
                 self.assignee = str(self.expression)
@@ -479,7 +481,7 @@ class CodeBlock(ABC):
         if expression_prefix not in self.env.div_exps:
             free_var = "div_%s" % self.tmpid.num
             self.tmpid.increase()
-            if self.args.real_support:
+            if self.expression.ttype == REAL_TYPE:
                 self.env.div_vars[free_var] = self.type_real()
             else:
                 self.env.div_vars[free_var] = self.type_int()
@@ -498,7 +500,7 @@ class CodeBlock(ABC):
             divisor = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
             self.statements.extend(divisor.statements)
             divisors.append(divisor.identifier)
-            condition.append("(%s %s %s)" % (divisor.identifier, self.op_distinct(), self.num_zero()))
+            condition.append("(%s %s %s)" % (divisor.identifier, self.op_distinct(), self.num_zero(self.expression.ttype)))
         
         condition = self.op_bool_and().join(condition)
         expression = symbol.join(divisors)

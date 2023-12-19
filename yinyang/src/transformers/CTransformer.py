@@ -83,8 +83,8 @@ class CCodeBlock(CodeBlock):
     def type_real(self) -> str:
         return "double"
 
-    def num_zero(self) -> str:
-        return super().num_zero()
+    def num_zero(self, ttype) -> str:
+        return super().num_zero(ttype)
     
     def num_real(self, num) -> str:
         return super().num_real(num)
@@ -118,7 +118,7 @@ class CCodeBlock(CodeBlock):
             raise Exception("Unsupported type: %s, %s" % (ttype, identifier))
 
     def stmt_init_array(self, identifier:str, length:int) -> str:
-        if self.args.real_support:
+        if self.expression.subterms[0].ttype == REAL_TYPE:
             return "%s %s[%s];" % (self.type_real(), identifier, len(self.expression.subterms))
         else:
             return "%s %s[%s];" % (self.type_int(), identifier, len(self.expression.subterms))
@@ -127,7 +127,7 @@ class CCodeBlock(CodeBlock):
         return "%s = %s;" % (identifier, assignee)
         
     def stmt_bool_chain(self, identifiers:list, op) -> str:
-        if self.args.real_support and op in [self.op_equal(), self.op_bool_gte(), self.op_bool_lte()]:
+        if self.expression.subterms[0].ttype == REAL_TYPE and op in [self.op_equal(), self.op_bool_gte(), self.op_bool_lte()]:
             combinations = []
             for i in range(len(identifiers)):
                 for j in range(i+1, len(identifiers)):

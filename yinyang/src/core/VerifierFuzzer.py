@@ -240,21 +240,23 @@ class CFuzzer(VerifierFuzzer):
             log_solver_timeout(self.args, checker.cil, self.iteration)
             return False, "checker OK_TIMEOUT"
         elif exitcode == ERR_COMPILATION:
-            path = self.report(script, transformer, "compilation_error", checker)
+            path = self.report(script, transformer, "compilation_error1", checker)
             log_segfault_trigger(self.args, path, self.iteration)
             return True, "checker ERR_COMPILATION"
+        elif "Integer value is too large" in checker.stderr + checker.stdout:
+            return False, "integer value too large"
         elif "Parsing failed" in checker.stderr + checker.stdout:
-            path = self.report(script, transformer, "compilation_error", checker)
+            path = self.report(script, transformer, "compilation_error2", checker)
             log_segfault_trigger(self.args, path, self.iteration)
             return True, "checker parsing failed"
         elif checker.returncode != 0:
-            path = self.report(script, transformer, "compilation_error", checker)
+            path = self.report(script, transformer, "compilation_error3", checker)
             log_segfault_trigger(self.args, path, self.iteration)
             return True, "unknown error"
 
         result = checker.get_result()
         if result == ERR_COMPILATION: 
-            path = self.report(script, transformer, "compilation_error", checker)
+            path = self.report(script, transformer, "compilation_error4", checker)
             log_segfault_trigger(self.args, path, self.iteration)
             return True, "unknown error" 
         if result.equals(SolverQueryResult.SAT):
