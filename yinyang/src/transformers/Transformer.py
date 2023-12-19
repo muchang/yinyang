@@ -204,7 +204,7 @@ class CodeBlock(ABC):
         assert(0)
 
     @abstractmethod
-    def stmt_init_array(self, identifier:str, length:int) -> str:
+    def stmt_init_array(self, identifier:str, length:int, ttype) -> str:
         assert(0)
 
     @abstractmethod
@@ -515,7 +515,7 @@ class CodeBlock(ABC):
         self.assignee = ""
         identifier = "tmp_%s" % self.tmpid.num
         self.tmpid.increase()
-        self.statements.append(self.stmt_init_array(identifier, len(self.expression.subterms)))
+        self.statements.append(self.stmt_init_array(identifier, len(self.expression.subterms), self.expression.ttype))
         
         elements = []
         for i, subterm in enumerate(self.expression.subterms):

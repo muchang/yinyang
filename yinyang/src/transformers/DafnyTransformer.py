@@ -116,8 +116,8 @@ class DafnyCodeBlock(CodeBlock):
     def stmt_break(self) -> str:
         return "break;"
 
-    def stmt_init_array(self, identifier:str, length:int) -> str:
-        if self.expression.subterms[0].ttype == REAL_TYPE:
+    def stmt_init_array(self, identifier:str, length:int, ttype) -> str:
+        if ttype == REAL_TYPE:
             return "var %s := new %s[%s];" % (identifier, self.type_real(), length)
         else:
             return "var %s := new %s[%s];" % (identifier, self.type_int(), length)

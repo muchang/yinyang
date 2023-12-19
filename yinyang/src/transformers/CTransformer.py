@@ -117,8 +117,8 @@ class CCodeBlock(CodeBlock):
         else:
             raise Exception("Unsupported type: %s, %s" % (ttype, identifier))
 
-    def stmt_init_array(self, identifier:str, length:int) -> str:
-        if self.expression.subterms[0].ttype == REAL_TYPE:
+    def stmt_init_array(self, identifier:str, length:int, ttype) -> str:
+        if ttype == REAL_TYPE:
             return "%s %s[%s];" % (self.type_real(), identifier, len(self.expression.subterms))
         else:
             return "%s %s[%s];" % (self.type_int(), identifier, len(self.expression.subterms))
