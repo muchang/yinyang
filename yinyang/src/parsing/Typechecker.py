@@ -142,6 +142,11 @@ def typecheck_nary_numeral_ret(expr, ctxt):
         t = typecheck_expr(term, ctxt)
         if t not in [INTEGER_TYPE, REAL_TYPE]:
             raise TypeCheckError(expr, term, typ, t)
+        """
+        Casting to REAL_TYPE if one of the terms is REAL_TYPE
+        """
+        if t == REAL_TYPE:
+            typ = REAL_TYPE
     return typ
 
 
