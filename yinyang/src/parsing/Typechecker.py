@@ -145,7 +145,7 @@ def typecheck_nary_numeral_ret(expr, ctxt):
         """
         Casting to REAL_TYPE if one of the terms is REAL_TYPE
         """
-        if t is REAL_TYPE:
+        if t == REAL_TYPE:
             typ = REAL_TYPE
     return typ
 
