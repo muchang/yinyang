@@ -93,6 +93,9 @@ class CodeBlock(ABC):
     statements: list
     assignee: str
 
+    @abstractmethod
+    def castto(self, value: str, ttype) -> str:
+        assert(0)
     
     @abstractmethod
     def left_bracket(self) -> str:
@@ -340,6 +343,8 @@ class CodeBlock(ABC):
             self.statements.extend(branch1.statements)
             self.statements.extend(branch2.statements)
 
+            if self.expression.subterms[1].ttype == REAL_TYPE or self.expression.subterms[2].ttype == REAL_TYPE:
+                statements, self.assignee = self.block_if_then_else(condition.identifier, self.castto(branch1.identifier, REAL_TYPE), self.castto(branch2.identifier, REAL_TYPE), REAL_TYPE)
             
             statements, self.assignee = self.block_if_then_else(condition.identifier, branch1.identifier, branch2.identifier, self.expression.ttype)
             self.statements.extend(statements)
@@ -359,20 +364,34 @@ class CodeBlock(ABC):
         elif self.expression.op == EQUAL:
 
             equal_identifiers = []
+            is_real = False
+            for subterm in self.expression.subterms:
+                if subterm.ttype == REAL_TYPE:
+                    is_real = True
             for subterm in self.expression.subterms:
                 equal = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
                 self.statements.extend(equal.statements)
-                equal_identifiers.append(equal.identifier)
+                if is_real:
+                    equal_identifiers.append(self.castto(equal.identifier, REAL_TYPE))
+                else:
+                    equal_identifiers.append(equal.identifier)
             
             self.assignee = self.stmt_bool_chain(equal_identifiers, self.op_equal())
         
         elif self.expression.op == DISTINCT:
 
             distinct_identifiers = []
+            is_real = False
+            for subterm in self.expression.subterms:
+                if subterm.ttype == REAL_TYPE:
+                    is_real = True
             for subterm in self.expression.subterms:
                 distinct = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
                 self.statements.extend(distinct.statements)
-                distinct_identifiers.append(distinct.identifier)
+                if is_real:
+                    distinct_identifiers.append(self.castto(distinct.identifier, REAL_TYPE))
+                else:
+                    distinct_identifiers.append(distinct.identifier)
             
             self.assignee = self.stmt_distinct_chain(distinct_identifiers)
         
@@ -495,12 +514,12 @@ class CodeBlock(ABC):
         self.statements.extend(dividend.statements)
 
         # other subterms are the divisors
-        divisors = [dividend.identifier]
+        divisors = [self.castto(dividend.identifier, self.expression.ttype)]
         for subterm in self.expression.subterms[1:]:
             divisor = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
             self.statements.extend(divisor.statements)
-            divisors.append(divisor.identifier)
-            condition.append("(%s %s %s)" % (divisor.identifier, self.op_distinct(), self.num_zero(self.expression.ttype)))
+            divisors.append(self.castto(divisor.identifier, self.expression.ttype))
+            condition.append("(%s %s %s)" % (self.castto(divisor.identifier, self.expression.ttype), self.op_distinct(), self.num_zero(self.expression.ttype)))
         
         condition = self.op_bool_and().join(condition)
         expression = symbol.join(divisors)
@@ -521,7 +540,7 @@ class CodeBlock(ABC):
         for i, subterm in enumerate(self.expression.subterms):
             subblock = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
             self.statements.extend(subblock.statements)
-            self.statements.append(self.stmt_assign(self.op_idx_array(identifier, i), subblock.identifier))
+            self.statements.append(self.stmt_assign(self.op_idx_array(identifier, i), self.castto(subblock.identifier, self.expression.ttype)))
             elements.append(self.op_idx_array(identifier, i))
         return "%s" % op.join(elements)
 
@@ -529,10 +548,17 @@ class CodeBlock(ABC):
 
         self.assignee = ""
         equal_identifiers = []
+        is_real = False
+        for subterm in self.expression.subterms:
+            if subterm.ttype == REAL_TYPE:
+                is_real = True
         for subterm in self.expression.subterms:
             equal = self.__class__(self.tmpid, self.env, self.context, self.args, subterm)
             self.statements.extend(equal.statements)
-            equal_identifiers.append(equal.identifier)
+            if is_real:
+                equal_identifiers.append(self.castto(equal.identifier, REAL_TYPE))
+            else:
+                equal_identifiers.append(equal.identifier)
 
         return self.stmt_bool_chain(equal_identifiers, op)
 

@@ -38,6 +38,16 @@ global_text = ""
 
 class CCodeBlock(CodeBlock):
 
+    def castto(self, value: str, ttype):
+        if ttype == REAL_TYPE:
+            return "(double) %s" % value
+        elif ttype == INTEGER_TYPE:
+            return "(long) %s" % value
+        elif ttype == BOOLEAN_TYPE:
+            return "(bool) %s" % value
+        else:
+            raise Exception("Unsupported type: %s" % ttype)
+
     def left_bracket(self) -> str:
         return super().left_bracket()
 

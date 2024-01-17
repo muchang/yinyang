@@ -31,12 +31,22 @@ from yinyang.src.parsing.Ast import Term
 from yinyang.src.parsing.Types import (
     NOT, AND, IMPLIES, OR, XOR, EQUAL, DISTINCT, ITE,
     UNARY_MINUS, PLUS, ABS, MINUS, MULTIPLY, LT, GT, LTE, GTE, DIV, MOD, REAL_DIV,
-    FORALL, EXISTS, REAL_TYPE
+    FORALL, EXISTS, REAL_TYPE, INTEGER_TYPE, BOOLEAN_TYPE
 )
 
 global_text = ""
 
 class DafnyCodeBlock(CodeBlock):
+
+    def castto(self, value: str, ttype):
+        if ttype == REAL_TYPE:
+            return "(%s as real)" % value
+        elif ttype == INTEGER_TYPE:
+            return "(%s as int)" % value
+        elif ttype == BOOLEAN_TYPE:
+            return "(%s as bool)" % value
+        else:
+            raise Exception("Unsupported type: %s" % ttype)
 
     def left_bracket(self) -> str:
         return super().left_bracket()
