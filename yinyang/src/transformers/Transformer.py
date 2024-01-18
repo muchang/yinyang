@@ -345,8 +345,8 @@ class CodeBlock(ABC):
 
             if self.expression.subterms[1].ttype == REAL_TYPE or self.expression.subterms[2].ttype == REAL_TYPE:
                 statements, self.assignee = self.block_if_then_else(condition.identifier, self.castto(branch1.identifier, REAL_TYPE), self.castto(branch2.identifier, REAL_TYPE), REAL_TYPE)
-            
-            statements, self.assignee = self.block_if_then_else(condition.identifier, branch1.identifier, branch2.identifier, self.expression.ttype)
+            else:
+                statements, self.assignee = self.block_if_then_else(condition.identifier, branch1.identifier, branch2.identifier, self.expression.ttype)
             self.statements.extend(statements)
 
     
