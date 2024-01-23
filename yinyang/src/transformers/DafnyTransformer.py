@@ -180,7 +180,9 @@ class DafnyCodeBlock(CodeBlock):
         return statements
     
     def stmts_while(self, condition:str, statements:list) -> list:
-        return ["while (%s) {" % condition] + statements + ["}"]
+        ret = ["var %s := 0; while (%s && %s < 10) {" % ("i_"+str(self.tmpid.num), condition, "i_"+str(self.tmpid.num))] + statements + ["%s := %s + 1;" % ("i_"+str(self.tmpid.num), "i_"+str(self.tmpid.num))]+["}"]
+        self.tmpid.increase()
+        return ret
     
     def stmt_bool_chain(self, identifiers:list, op) -> str:
         return super().stmt_bool_chain(identifiers, op)

@@ -618,7 +618,7 @@ class AndBlock(CodeBlock):
         else:
             subblock = self.__class__(self.tmpid, self.env, self.context, self.args, Term(op="and", subterms=self.expression.subterms[1:], ttype=BOOLEAN_TYPE), identifier=self.identifier)
             statements.extend(subblock.statements)
-        statements.append(self.stmt_break())
+        # statements.append(self.stmt_break())
         
         self.statements.extend(self.stmts_while(condition.identifier, statements))
 
