@@ -33,8 +33,8 @@ class Dafny(Tool):
                    "/proverOpt:O:memory_max_size=10000", 
                    "/timeLimit:40", 
                    "/rlimit:10000",
-                   "/printVerifiedProceduresCount:0",
-                   "/proverOpt:O:smt.arith.solver=6"]
+                   "/printVerifiedProceduresCount:0"]
+                #    "/proverOpt:O:smt.arith.solver=6"]
     
     randomconfigs = [
                         ["/noCheating:0",
