@@ -33,8 +33,8 @@ class Dafny(Tool):
                    "/proverOpt:O:memory_max_size=10000", 
                    "/timeLimit:40", 
                    "/rlimit:10000",
-                   "/printVerifiedProceduresCount:0"]
-                #    "/proverOpt:O:smt.arith.solver=6"]
+                   "/printVerifiedProceduresCount:0",
+                   "/proverOpt:O:smt.arith.solver=6"]
     
     randomconfigs = [
                         ["/noCheating:0",
@@ -57,17 +57,17 @@ class Dafny(Tool):
                         ["/definiteAssignment:1",
                          "/definiteAssignment:4"],
 
-                        ["/arith:0",
-                         "/arith:1",
-                         "/arith:2",
-                         "/arith:3",
-                         "/arith:4",
-                         "/arith:5",
-                         "/arith:6",
-                         "/arith:7",
-                         "/arith:8",
-                         "/arith:9",
-                         "/arith:10"],
+                        # ["/arith:0",
+                        #  "/arith:1",
+                        #  "/arith:2",
+                        #  "/arith:3",
+                        #  "/arith:4",
+                        #  "/arith:5",
+                        #  "/arith:6",
+                        #  "/arith:7",
+                        #  "/arith:8",
+                        #  "/arith:9",
+                        #  "/arith:10"],
 
                         ["/rewriteFocalPredicates:0",
                          "/rewriteFocalPredicates:1"],

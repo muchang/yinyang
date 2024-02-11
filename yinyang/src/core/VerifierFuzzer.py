@@ -34,6 +34,7 @@ from yinyang.src.core.Tool import Tool
 from yinyang.src.core.tools.CCompiler import Compiler
 from yinyang.src.core.tools.CPAchecker import CPAchecker
 from yinyang.src.core.tools.Dafny import Dafny
+from yinyang.src.core.Statistic import VerifierStatistic
 
 from yinyang.src.transformers.Transformer import Transformer    
 from yinyang.src.transformers.CTransformer import CTransformer
@@ -61,6 +62,7 @@ class VerifierFuzzer(Fuzzer, ABC):
 
     def __init__(self, args, strategy):
         super().__init__(args, strategy)
+        self.statistic = VerifierStatistic()
         self.timeout_of_dafny_check = 0
         self.strategy = self.args.mutation_engine
         self.postfix = ""
@@ -94,10 +96,12 @@ class VerifierFuzzer(Fuzzer, ABC):
             solver.result = init_oracle(self.args)
         else:
             solver.run(scratchsmt, self.args.timeout)
+            self.statistic.verifier_solver_calls += 1
 
         if solver.result.equals(SolverQueryResult.UNKNOWN):
             return False, "Solver failed"
 
+        self.statistic.verifier_solver_success_calls += 1
         return self.verify(formula, scratchprefix, solver)
 
     def report(self, script, code, bugtype, checker:Tool):
@@ -265,11 +269,11 @@ class CFuzzer(VerifierFuzzer):
         checker_cli = self.args.SOLVER_CLIS[3]
         checker = CPAchecker(checker_cli)
         checker.run(scratchc, self.args.timeout)
-        self.statistic.solver_calls += 1
+        self.statistic.verifier_calls += 1
 
         exitcode = checker.check_exitcode()
         if exitcode == ERR_INTERNAL:
-            self.statistic.effective_calls += 1
+            self.statistic.verifier_success_calls += 1
             self.statistic.crashes += 1
             path = self.report(script, transformer, "segfault", checker)
             log_segfault_trigger(self.args, path, self.iteration)
@@ -292,6 +296,7 @@ class CFuzzer(VerifierFuzzer):
             log_segfault_trigger(self.args, path, self.iteration)
             return True, "unknown error"
         
+        self.statistic.verifier_success_calls += 1
         result = checker.get_result()
         if not solver.result.equals(result):
             self.statistic.soundness += 1
@@ -321,11 +326,11 @@ class DafnyFuzzer(VerifierFuzzer):
         dafny_cli = self.args.SOLVER_CLIS[1]
         dafny = Dafny(dafny_cli)
         dafny.run(scratchdafny, self.args.timeout)
-        self.statistic.solver_calls += 1
+        self.statistic.verifier_calls += 1
 
         exitcode = dafny.check_exitcode()
         if exitcode == ERR_INTERNAL:
-            self.statistic.effective_calls += 1
+            self.statistic.verifier_success_calls += 1
             self.statistic.crashes += 1
             path = self.report(script, transformer, "segfault", dafny)
             log_segfault_trigger(self.args, path, self.iteration)
@@ -344,7 +349,7 @@ class DafnyFuzzer(VerifierFuzzer):
             if "Out of memory" not in dafny.stderr and\
                "System.OutOfMemoryException" not in dafny.stderr and \
                "No usable version of libssl was found" not in dafny.stderr:
-                self.statistic.effective_calls += 1
+                self.statistic.verifier_success_calls += 1
                 self.statistic.crashes += 1
                 path = self.report(script, transformer, "compile_error", dafny)
                 log_segfault_trigger(self.args, path, self.iteration)
@@ -352,7 +357,7 @@ class DafnyFuzzer(VerifierFuzzer):
             else:
                 return False, "dafny out of memory"
             
-        self.statistic.effective_calls += 1
+        self.statistic.verifier_success_calls += 1
         result = dafny.get_result()
         if result == ERR_COMPILATION:
             path = self.report(script, transformer, "compilation_error", dafny)

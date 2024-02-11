@@ -729,7 +729,7 @@ class Transformer(CodeBlock):
         self.statements = self.stmts_file_head()
         self.statements.append(self.stmt_method_head()+self.left_bracket())
         self.statements.extend(self.stmts_function_head())
-        self.statements.append(self.stmt_init_bool("oracle", self.bool_true()))
+        self.statements.append(self.stmt_init_bool("oracle", self.bool_false()))
         for assertion in self.defined_assertions:
             self.statements.extend(assertion[1].statements)
             if assertion[2] == "bool":

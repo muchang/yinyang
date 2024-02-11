@@ -74,3 +74,52 @@ class Statistic:
             % (self.total_seeds, valid_seeds, self.invalid_seeds, num_bugs)
         )
         print(summary)
+
+class VerifierStatistic(Statistic):
+
+    def __init__(self):
+        super().__init__()
+        self.verifier_solver_calls = 0
+        self.verifier_solver_success_calls = 0
+        self.verifier_calls = 0
+        self.verifier_success_calls = 0
+
+    def printbar(self, start_time):
+        total_time = time.time() - start_time
+        if self.verifier_solver_calls != 0:
+            eff = round(
+                (float(self.verifier_solver_success_calls) / float(self.verifier_solver_calls)) * 100,
+                1
+            )
+            eff_str_solver = str(eff) + "%"
+        else:
+            eff_str_solver = "NaN"
+        
+        if self.verifier_calls != 0:
+            eff = round(
+                (float(self.verifier_success_calls) / float(self.verifier_calls)) * 100,
+                1
+            )
+            eff_str_verifier = str(eff) + "%"
+        else:
+            eff_str_verifier = "NaN"
+
+        solver_calls_per_sec = round(
+            float(self.verifier_solver_calls) / float(total_time), 1)
+        verifier_calls_per_sec = round(
+            float(self.verifier_calls) / float(total_time), 1)
+
+        mutants_per_sec = round(float(self.mutants) / float(total_time), 1)
+        mutants_per_sec_str = str(mutants_per_sec)
+        bar = "Performed %d solver calls, %d verifier calls\
+(%s solver calls/s, %s verifier calls/s, solver eff: %s, verifier eff: %s, %s mutants/s)" % (
+            self.verifier_solver_calls,
+            self.verifier_calls,
+            solver_calls_per_sec,
+            verifier_calls_per_sec,
+            eff_str_solver,
+            eff_str_verifier,
+            mutants_per_sec_str,
+        )
+        logging.info(bar)
+
