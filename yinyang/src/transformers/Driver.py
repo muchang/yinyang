@@ -5,10 +5,9 @@ path = Path(__file__)
 rootpath = str(path.parent.absolute().parent.parent.parent)
 sys.path.append(rootpath)
 
-
-from yinyang.src.transformers.Util import MaxTmpIDException
 from yinyang.src.transformers.CTransformer import CTransformer
 from yinyang.src.transformers.DafnyTransformer import DafnyTransformer
+from yinyang.src.transformers.SQLTransformer import SQLTransformer
 from yinyang.src.parsing.Parse import parse_file
 from yinyang.src.parsing.Typechecker import typecheck
 
@@ -24,7 +23,7 @@ parser.add_argument(
         type=str
     )
 parser.add_argument(
-        "dafnyfile",
+        "outputfile",
         type=str
     )
 parser.add_argument(
@@ -82,5 +81,5 @@ elif args.language == "dafny":
     transformer = DafnyTransformer(formula, args)
 elif args.language == "sql":
     transformer = SQLTransformer(formula, args)
-with open(args.dafnyfile, "w") as f:
+with open(args.outputfile, "w") as f:
     f.write(str(transformer))

@@ -62,9 +62,17 @@ class Expression:
         elif self.term.op == NOT:
             self.text = "NOT (%s)" % Expression(self.term.subterms[0], self.env, self.context).text
         elif self.term.op == AND:
-            self.text = "(%s) AND (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text = "(%s) AND (%s)" % (self.text, Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == OR:
-            self.text = "(%s) OR (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text = "(%s) OR (%s)" % (self.text, Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == XOR:
             self.text = "(%s) XOR (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
         elif self.term.op == IMPLIES:
@@ -106,15 +114,17 @@ class Expression:
                 let_expression = Expression(self.term.let_terms[let_term_idx], self.env, self.context)
                 let_var = normalize_var_name(str(self.term.var_binders[let_term_idx]))
                 self.context.let_vars[let_var] = let_expression.text
+            self.text = Expression(self.term.subterms[0], self.env, self.context).text
         elif self.term.op == None:
-            if self.term.ttype == BOOLEAN_TYPE:
-                self.text = "TRUE" if str(self.term) == "true" else "FALSE"
-            elif self.term.ttype == INTEGER_TYPE:
-                self.text = str(self.term)
-            elif self.term.ttype == REAL_TYPE:
-                self.text = str(self.term)
+            if self.term.ttype == str(self.term) == "true":
+                self.text = "TRUE"
+            elif self.term.ttype == str(self.term) == "false":
+                self.text = "FALSE"
             else:
-                self.text = str(self.term)
+                if normalize_var_name(str(self.term)) in self.context.let_vars:
+                    self.text = self.context.let_vars[normalize_var_name(str(self.term))]
+                else:
+                    self.text = normalize_var_name(str(self.term))
 
     def __str__(self) -> str:
         return self.text 
@@ -125,7 +135,7 @@ class SQLTransformer:
         
         self.tmpid = TmpID()
         self.args = args
-        self.assert_cmds = formula[0].assert_cmds
+        self.assert_cmds = formula[0].assert_cmd
         self.free_variables = formula[1]
         self.defined_variables = formula[2]
         self.context = Context()
@@ -134,11 +144,11 @@ class SQLTransformer:
         self.context.exclude_defined_vars_by(self.defined_variables) 
 
         self.assert_terms = []
-        #TODO: add method support
         for assert_cmd in self.assert_cmds:
             self.assert_terms.append(assert_cmd.term)
         
         formula_term = Term(op="and", subterms=self.assert_terms, ttype=BOOLEAN_TYPE)
+        self.expression = Expression(formula_term, self.env, self.context)
         
 
     def __str__(self) -> str:
