@@ -23,6 +23,7 @@ from copy import deepcopy
 from typing import Tuple
 from argparse import Namespace
 from abc import ABC, abstractmethod
+from yinyang.src.transformers.Util import TmpID, Context, Environment
 from yinyang.src.parsing.Types import BOOLEAN_TYPE, REAL_TYPE, INTEGER_TYPE
 from yinyang.src.parsing.Typechecker import typecheck_expr
 
@@ -34,54 +35,7 @@ from yinyang.src.parsing.Types import (
 )
 from yinyang.src.parsing.Ast import Term
 from yinyang.src.transformers.Util import normalize_var_name, MaxTmpIDException
-
-class TmpID:
-
-    def __init__(self, tmpid=0):
-        self.num = tmpid
-
-    def increase(self):
-        self.num += 1
-
-class Context(ABC):
-
-    def __init__(self, context=None):
-        if context is None:
-            self.free_vars = {}
-            self.let_vars = {}
-            self.defined_vars = {}
-        else:
-            self.free_vars = context.free_vars
-            self.let_vars = context.let_vars
-            self.defined_vars = context.defined_vars
-    
-    def add_context(self, context: 'Context'):
-        self.free_vars.update(context.free_vars)
-        self.let_vars.update(context.let_vars)
-        self.defined_vars.update(context.defined_vars)
-
-    def get_free_vars_from(self, smt_variables):
-        for var in smt_variables:
-            self.free_vars[var] = smt_variables[var]
-        
-    def exclude_defined_vars_by(self, smt_variables):
-        for var in smt_variables:
-            del self.free_vars[var]
-        
-class Environment:
-
-    def __init__(self):
-        self.methods = []
-        self.global_vars = {}
-        self.div_vars = {}
-        self.div_exps = {}
-    
-    def add_environment(self, env: 'Environment'):
-        self.methods.extend(env.methods)
-        self.global_vars.update(env.global_vars)
-        self.div_vars.update(env.div_vars)
-        self.div_exps.update(env.div_exps)
-
+from typing import List, Tuple
 
 class CodeBlock(ABC):
 
@@ -302,14 +256,16 @@ class CodeBlock(ABC):
         if self.assignee != "":
             if self.customizedID:
                 self.statements.append(self.stmt_assign(self.identifier, self.assignee))
-            elif self.expression.op == NOT or \
-               self.expression.op == IMPLIES or \
-               self.expression.op == EQUAL or \
+            # Add missing imports for Tuple and List types
+
+            if self.expression.op == NOT or \
+                self.expression.op == IMPLIES or \
+                self.expression.op == EQUAL or \
                 self.expression.op == DISTINCT or \
                 self.expression.op == AND or \
                 self.expression.op == OR or \
                 self.expression.op == XOR:
-                self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
+                 self.statements.append(self.stmt_init_bool(self.identifier, self.assignee))
             elif self.expression.op == None:
                 if self.assignee in self.context.free_vars:
                     if self.context.free_vars[self.assignee] == "Real" or self.context.free_vars[self.assignee] == "Int":

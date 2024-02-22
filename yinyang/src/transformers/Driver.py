@@ -80,5 +80,7 @@ if args.language == "c":
     transformer = CTransformer(formula, args)
 elif args.language == "dafny":
     transformer = DafnyTransformer(formula, args)
+elif args.language == "sql":
+    transformer = SQLTransformer(formula, args)
 with open(args.dafnyfile, "w") as f:
     f.write(str(transformer))

@@ -1,0 +1,146 @@
+# MIT License
+#
+# Copyright (c) [2020 - 2021] The yinyang authors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+from copy import deepcopy
+
+from argparse import Namespace
+
+from yinyang.src.parsing.Ast import Term
+
+from yinyang.src.parsing.Types import (
+    NOT, AND, IMPLIES, OR, XOR, EQUAL, DISTINCT, ITE,
+    UNARY_MINUS, PLUS, ABS, MINUS, MULTIPLY, LT, GT, LTE, GTE, DIV, MOD, REAL_DIV,
+    FORALL, EXISTS, REAL_TYPE, INTEGER_TYPE, BOOLEAN_TYPE
+)
+
+from yinyang.src.transformers.Util import TmpID, Context, Environment, normalize_var_name
+
+class Expression:
+
+    env: Environment
+    context: Context
+    term: Term
+    text: str
+
+    def __init__(self, term, env, context) -> None:
+        self.env = env
+        self.term = term
+        self.text = ""
+
+        if self.term.let_terms != None:
+            self.context = Context(context)
+        else:
+            self.context = deepcopy(context)
+
+        self.build_expression()
+    
+    def build_expression(self):
+        if self.term.op == ITE:
+            self.text = "CASE WHEN %s THEN %s ELSE %s END" % (
+                Expression(self.term.subterms[0], self.env, self.context).text,
+                Expression(self.term.subterms[1], self.env, self.context).text,
+                Expression(self.term.subterms[2], self.env, self.context).text
+            )
+        elif self.term.op == NOT:
+            self.text = "NOT (%s)" % Expression(self.term.subterms[0], self.env, self.context).text
+        elif self.term.op == AND:
+            self.text = "(%s) AND (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == OR:
+            self.text = "(%s) OR (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == XOR:
+            self.text = "(%s) XOR (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == IMPLIES:
+            self.text = "(%s) IMPLIES (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == EQUAL:
+            self.text = "(%s) = (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == DISTINCT:
+            self.text = "(%s) <> (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == ITE:
+            self.text = "IF (%s) THEN (%s) ELSE (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text, Expression(self.term.subterms[2], self.env, self.context).text)
+        elif self.term.op == UNARY_MINUS:
+            self.text = "-(%s)" % Expression(self.term.subterms[0], self.env, self.context).text
+        elif self.term.op == PLUS:
+            self.text = "(%s) + (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == ABS:
+            self.text = "ABS(%s)" % Expression(self.term.subterms[0], self.env, self.context).text
+        elif self.term.op == MINUS:
+            self.text = "(%s) - (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == MULTIPLY:
+            self.text = "(%s) * (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == LT:
+            self.text = "(%s) < (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == GT:
+            self.text = "(%s) > (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == LTE:
+            self.text = "(%s) <= (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == GTE:
+            self.text = "(%s) >= (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == DIV:
+            self.text = "(%s) / (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == MOD:
+            self.text = "(%s) MOD (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == REAL_DIV:
+            self.text = "(%s) / (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.op == IMPLIES:
+            self.text = "NOT (%s) OR %s" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+        elif self.term.let_terms != None:
+            for let_term_idx in range(len(self.term.let_terms)):
+                let_expression = Expression(self.term.let_terms[let_term_idx], self.env, self.context)
+                let_var = normalize_var_name(str(self.term.var_binders[let_term_idx]))
+                self.context.let_vars[let_var] = let_expression.text
+        elif self.term.op == None:
+            if self.term.ttype == BOOLEAN_TYPE:
+                self.text = "TRUE" if str(self.term) == "true" else "FALSE"
+            elif self.term.ttype == INTEGER_TYPE:
+                self.text = str(self.term)
+            elif self.term.ttype == REAL_TYPE:
+                self.text = str(self.term)
+            else:
+                self.text = str(self.term)
+
+    def __str__(self) -> str:
+        return self.text 
+
+class SQLTransformer:
+
+    def __init__(self, formula, args: Namespace):
+        
+        self.tmpid = TmpID()
+        self.args = args
+        self.assert_cmds = formula[0].assert_cmds
+        self.free_variables = formula[1]
+        self.defined_variables = formula[2]
+        self.context = Context()
+        self.env =  Environment()
+        self.context.get_free_vars_from(self.free_variables)
+        self.context.exclude_defined_vars_by(self.defined_variables) 
+
+        self.assert_terms = []
+        #TODO: add method support
+        for assert_cmd in self.assert_cmds:
+            self.assert_terms.append(assert_cmd.term)
+        
+        formula_term = Term(op="and", subterms=self.assert_terms, ttype=BOOLEAN_TYPE)
+        
+
+    def __str__(self) -> str:
+        return "SELECT * FROM table WHERE %s" % self.expression.text
+
