@@ -66,47 +66,103 @@ class Expression:
                 if index == 0:
                     self.text = Expression(self.term.subterms[index], self.env, self.context).text
                 else:
-                    self.text = "(%s) AND (%s)" % (self.text, Expression(self.term.subterms[index], self.env, self.context).text)
+                    self.text += " AND (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == OR:
             for index in range(len(self.term.subterms)):
                 if index == 0:
                     self.text = Expression(self.term.subterms[index], self.env, self.context).text
                 else:
-                    self.text = "(%s) OR (%s)" % (self.text, Expression(self.term.subterms[index], self.env, self.context).text)
+                    self.text += " OR (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == XOR:
-            self.text = "(%s) XOR (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text + "XOR (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == IMPLIES:
             self.text = "(%s) IMPLIES (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
         elif self.term.op == EQUAL:
-            self.text = "(%s) = (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            self.text += ""
+            for i in range(len(self.term.subterms)):
+                for j in range(i+1, len(self.term.subterms)):
+                    if i == 0 and j == 1:
+                        self.text += "(%s) = (%s)" % (Expression(self.term.subterms[i], self.env, self.context).text, Expression(self.term.subterms[j], self.env, self.context).text)
+                    else:
+                        self.text += " AND (%s) = (%s)" % (Expression(self.term.subterms[i], self.env, self.context).text, Expression(self.term.subterms[j], self.env, self.context).text)
         elif self.term.op == DISTINCT:
-            self.text = "(%s) <> (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            self.text += ""
+            for i in range(len(self.term.subterms)):
+                for j in range(i+1, len(self.term.subterms)):
+                    if i == 0 and j == 1:
+                        self.text += "(%s) <> (%s)" % (Expression(self.term.subterms[i], self.env, self.context).text, Expression(self.term.subterms[j], self.env, self.context).text)
+                    else:
+                        self.text += " AND (%s) <> (%s)" % (Expression(self.term.subterms[i], self.env, self.context).text, Expression(self.term.subterms[j], self.env, self.context).text)
         elif self.term.op == ITE:
             self.text = "IF (%s) THEN (%s) ELSE (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text, Expression(self.term.subterms[2], self.env, self.context).text)
         elif self.term.op == UNARY_MINUS:
             self.text = "-(%s)" % Expression(self.term.subterms[0], self.env, self.context).text
         elif self.term.op == PLUS:
-            self.text = "(%s) + (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text += " + (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == ABS:
             self.text = "ABS(%s)" % Expression(self.term.subterms[0], self.env, self.context).text
         elif self.term.op == MINUS:
-            self.text = "(%s) - (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text += " - (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == MULTIPLY:
-            self.text = "(%s) * (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text += " * (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == LT:
-            self.text = "(%s) < (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text += " < (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == GT:
-            self.text = "(%s) > (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text += " > (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == LTE:
-            self.text = "(%s) <= (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text += " <= (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == GTE:
-            self.text = "(%s) >= (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text += " >= (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == DIV:
-            self.text = "(%s) / (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text += " / (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == MOD:
-            self.text = "(%s) MOD (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text += " MOD (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == REAL_DIV:
-            self.text = "(%s) / (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            for index in range(len(self.term.subterms)):
+                if index == 0:
+                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                else:
+                    self.text = " / (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == IMPLIES:
             self.text = "NOT (%s) OR %s" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
         elif self.term.let_terms != None:
