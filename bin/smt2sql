@@ -1,0 +1,148 @@
+#! /usr/bin/env python3
+
+# MIT License
+#
+# Copyright (c) [2020 - 2021] The yinyang authors
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+from pathlib import Path
+import sys
+import json
+
+path = Path(__file__)
+rootpath = str(path.parent.absolute().parent)
+sys.path.append(rootpath)
+
+from yinyang.src.transformers.SQLTransformer import SQLTransformer
+from yinyang.src.parsing.Parse import parse_file
+from yinyang.src.parsing.Typechecker import typecheck
+
+# from yinyang.src.core.tools.Solver import Solver, SolverQueryResult, SolverResult
+
+import argparse
+
+parser = argparse.ArgumentParser(
+        description="",
+        usage="",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+)
+parser.add_argument(
+        "smtfile",
+        type=str
+)
+parser.add_argument(
+        "sqlfile",
+        type=str
+)
+parser.add_argument(
+        "configfile",
+        type=str
+)
+# parser.add_argument(
+#     "-solver",
+#     "--solver-engine",
+#     default="none",
+#     type=str
+# )
+parser.add_argument(
+    "-mutation",
+    "--mutation-engine",
+    default="none",
+    metavar="{none, opfuzz, typefuzz, yinyang}",
+    type=str
+)
+parser.add_argument(
+    "-lang",
+    "--language",
+    default="sql",
+    metavar="{dafny, c, sql}",
+    type=str
+)
+args = parser.parse_args()
+
+try:
+    formula = parse_file(args.smtfile)
+    typecheck(formula[0], formula[1], 60)
+except Exception as e: 
+    print(f"Exception: {str(e)}")
+    sys.exit(1)
+
+transformer = SQLTransformer(formula, args)
+with open(args.sqlfile, "w") as f:
+    f.write(str(transformer))
+
+satisfiability = "unknown"
+
+from z3 import Solver, parse_smt2_string, sat, unsat, Z3_INT_SORT, Z3_REAL_SORT, Z3_BOOL_SORT, FuncInterp
+
+def read_formula(filename):
+    with open(filename, 'r') as file:
+        formula_str = file.read()
+    return parse_smt2_string(formula_str)
+
+def z3obj_to_pyobj(z3obj):
+    if isinstance(z3obj, FuncInterp):
+        return str(z3obj)
+    elif z3obj.sort().kind() == Z3_INT_SORT:
+        return int(z3obj.as_string())
+    elif z3obj.sort().kind() == Z3_REAL_SORT:
+        num_str = z3obj.as_string()
+        if '/' in num_str:  # it's a rational number
+            numerator, denominator = map(int, num_str.split('/'))
+            return numerator / denominator
+        else:  # it's a decimal number
+            return float(num_str)
+    elif z3obj.sort().kind() == Z3_BOOL_SORT:
+        return bool(z3obj)
+    else:
+        return str(z3obj)
+
+# Create a solver
+s = Solver()
+
+# Read the formula from a file
+z3formula = read_formula(args.smtfile)
+
+# Add the formula to the solver
+s.add(z3formula)
+model_dict = {}
+# Check for satisfiability
+result = s.check()
+if result == sat:
+    print("The formula is satisfiable")
+    m = s.model()
+    model_dict = {str(d): z3obj_to_pyobj(m[d]) for d in m.decls()}
+    satisfiability = "sat"
+elif result == unsat:
+    print("The formula is unsatisfiable")
+    satisfiability = "unsat"
+else:
+    print("The satisfiability of the formula is unknown")
+
+output = {
+  "table" : "db_table",
+  "satisfiability": satisfiability,
+  "variables": formula[1],
+  "models": model_dict 
+}
+
+dump = json.dumps(output, indent=4)
+with open(args.configfile, "w") as f:
+    f.write(str(dump))

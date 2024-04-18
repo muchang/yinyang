@@ -52,6 +52,13 @@ class Expression:
 
         self.build_expression()
     
+    def num_real(self, num) -> str:
+        num = str(num)
+        if "." not in num:
+            return "%s.0" % num
+        else:
+            return num
+    
     def build_expression(self):
         if self.term.op == ITE:
             self.text = "CASE WHEN %s THEN %s ELSE %s END" % (
@@ -64,23 +71,23 @@ class Expression:
         elif self.term.op == AND:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " AND (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == OR:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " OR (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == XOR:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
-                    self.text + "XOR (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
+                    self.text += " XOR (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == IMPLIES:
-            self.text = "(%s) IMPLIES (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
+            self.text = "NOT (%s) OR (%s)" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
         elif self.term.op == EQUAL:
             self.text += ""
             for i in range(len(self.term.subterms)):
@@ -104,7 +111,7 @@ class Expression:
         elif self.term.op == PLUS:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " + (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == ABS:
@@ -112,57 +119,57 @@ class Expression:
         elif self.term.op == MINUS:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " - (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == MULTIPLY:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " * (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == LT:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " < (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == GT:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " > (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == LTE:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " <= (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == GTE:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " >= (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == DIV:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " / (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == MOD:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
                     self.text += " MOD (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == REAL_DIV:
             for index in range(len(self.term.subterms)):
                 if index == 0:
-                    self.text = Expression(self.term.subterms[index], self.env, self.context).text
+                    self.text = "(%s)" % Expression(self.term.subterms[index], self.env, self.context).text
                 else:
-                    self.text = " / (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
+                    self.text += " / (%s)" % (Expression(self.term.subterms[index], self.env, self.context).text)
         elif self.term.op == IMPLIES:
             self.text = "NOT (%s) OR %s" % (Expression(self.term.subterms[0], self.env, self.context).text, Expression(self.term.subterms[1], self.env, self.context).text)
         elif self.term.let_terms != None:
@@ -177,10 +184,12 @@ class Expression:
             elif self.term.ttype == str(self.term) == "false":
                 self.text = "FALSE"
             else:
-                if normalize_var_name(str(self.term)) in self.context.let_vars:
-                    self.text = self.context.let_vars[normalize_var_name(str(self.term))]
-                else:
+                if not str.isdigit(str(self.term).replace(".", "")):
                     self.text = normalize_var_name(str(self.term))
+                elif self.term.ttype == REAL_TYPE:
+                    self.text = self.num_real(str(self.term))
+                else:
+                    self.text = str(self.term)
 
     def __str__(self) -> str:
         return self.text 
@@ -208,5 +217,5 @@ class SQLTransformer:
         
 
     def __str__(self) -> str:
-        return "SELECT * FROM table WHERE %s" % self.expression.text
+        return "SELECT * FROM db_table WHERE %s" % self.expression.text
 

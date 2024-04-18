@@ -105,6 +105,19 @@ class Solver(Tool):
         if in_list(self.stdout, self.stderr, crash_list):
             log_ignore_list_mutant((self.cil))
             return SolverResult(SolverQueryResult.UNKNOWN)
+        
+        import re
+
+        pattern = r"\(define-fun\s+(\w+)\s+\(\)\s+(\w+)\s+(.*?)\)"
+        matches = re.findall(pattern, self.stdout, re.DOTALL)
+
+        print(self.stdout)
+
+        self.models = {}
+        for match in matches:
+            variable, type_, value = match
+            print(f"Variable: {variable}, Type: {type_}, Value: {value.strip()}")
+            self.models[variable] = value.strip()
 
         if (
             not re.search("^unsat$", self.stdout, flags=re.MULTILINE)

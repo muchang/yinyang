@@ -91,7 +91,7 @@ class AstVisitor(SMTLIBv2Visitor):
             self.global_vars[identifier] = sort2type(output_sort)
         else:
             self.global_vars[identifier] =\
-                sort2type(input_sorts + " " + output_sort)
+                sort2type(output_sort)
     
     def add_to_defines(self, identifier, input_sorts, output_sort, term):
         if len(input_sorts) == 0:
@@ -150,12 +150,15 @@ class AstVisitor(SMTLIBv2Visitor):
         if ctx.cmd_defineFun():
             sorted_vars = []
             local_vars = {}
+            input_sorts = []
             for var in ctx.function_def().sorted_var():
                 symbol = self.visitSymbol(var.symbol())
                 sort = self.visitSort(var.sort())
+                input_sorts.append(sort)
                 sorted_vars.append(f"({symbol} {sort})")
                 local_vars[symbol] = sort2type(sort)
             identifier = self.visitSymbol(ctx.function_def().symbol())
+            output_sort = self.visitSort(ctx.function_def().sort())
             sorted_vars = " ".join(sorted_vars)
             self.add_to_globals(identifier, input_sorts, output_sort)
             self.add_to_defines(
