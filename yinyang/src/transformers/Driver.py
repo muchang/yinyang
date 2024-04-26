@@ -9,6 +9,7 @@ sys.path.append(rootpath)
 from yinyang.src.transformers.Util import MaxTmpIDException
 from yinyang.src.transformers.CTransformer import CTransformer
 from yinyang.src.transformers.DafnyTransformer import DafnyTransformer
+from yinyang.src.transformers.BoogieTransformer import BoogieTransformer
 from yinyang.src.parsing.Parse import parse_file
 from yinyang.src.parsing.Typechecker import typecheck
 
@@ -60,7 +61,7 @@ parser.add_argument(
     "-lang",
     "--language",
     default="dafny",
-    metavar="{dafny, c}",
+    metavar="{dafny, c, boogie}",
     type=str
 )
 parser.add_argument(
@@ -80,5 +81,7 @@ if args.language == "c":
     transformer = CTransformer(formula, args)
 elif args.language == "dafny":
     transformer = DafnyTransformer(formula, args)
+elif args.language == "boogie":
+    transformer = BoogieTransformer(formula, args)
 with open(args.dafnyfile, "w") as f:
     f.write(str(transformer))

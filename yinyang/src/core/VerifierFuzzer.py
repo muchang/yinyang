@@ -34,12 +34,15 @@ from yinyang.src.core.Tool import Tool
 from yinyang.src.core.tools.CCompiler import Compiler
 from yinyang.src.core.tools.CPAchecker import CPAchecker
 from yinyang.src.core.tools.Dafny import Dafny
+from yinyang.src.core.tools.Boogie import Boogie
 from yinyang.src.core.Statistic import VerifierStatistic
 
 from yinyang.src.transformers.Transformer import Transformer    
 from yinyang.src.transformers.CTransformer import CTransformer
 from yinyang.src.transformers.DafnyTransformer import DafnyTransformer
+from yinyang.src.transformers.BoogieTransformer import BoogieTransformer
 from yinyang.src.transformers.Util import MaxTmpIDException
+import yinyang.src.transformers.Util as Util
 
 from yinyang.src.core.tools.Solver import Solver, SolverQueryResult, SolverResult
 from yinyang.src.base.Exitcodes import ERR_INTERNAL,ERR_COMPILATION,OK_TIMEOUT
@@ -366,6 +369,71 @@ class DafnyFuzzer(VerifierFuzzer):
         if not solver.result.equals(result):
             self.statistic.soundness += 1
             path = self.report_diff(script,transformer,"incorrect",solver,dafny)
+            log_soundness_trigger(self.args, self.iteration, path)
+            return False, "dafny incorrect"
+            
+        return True, "dafny OK"
+    
+
+class BoogieFuzzer(VerifierFuzzer):
+    def __init__(self, args, strategy):
+        super().__init__(args, strategy)
+        self.postfix = ".bpl"
+    
+    def verify(self, formula, scratchprefix: str, solver: Solver) -> Tuple[bool, str]:
+        script = formula[0]
+        try:
+            Util.var_decl = ["var oracle: bool;"]
+            transformer = BoogieTransformer(formula, self.args)
+        except MaxTmpIDException:
+            return False, "MaxTmpIDException"
+        scratchboogie = scratchprefix+".bpl"
+        with open(scratchboogie, "w") as f:
+            f.write(str(transformer))
+
+        boogie_cli = self.args.SOLVER_CLIS[1]
+        boogie = Boogie(boogie_cli)
+        boogie.run(scratchboogie, self.args.timeout)
+        self.statistic.verifier_calls += 1
+
+        exitcode = boogie.check_exitcode()
+        if exitcode == ERR_INTERNAL:
+            self.statistic.verifier_success_calls += 1
+            self.statistic.crashes += 1
+            path = self.report(script, transformer, "segfault", boogie)
+            log_segfault_trigger(self.args, path, self.iteration)
+            return True, "dafny ERR_INTERNAL"
+
+        elif exitcode == OK_TIMEOUT:                
+            self.statistic.timeout += 1
+            self.timeout_of_current_seed += 1
+            log_solver_timeout(self.args, boogie_cli, self.iteration)
+            return False, "dafny OK_TIMEOUT"
+
+        elif boogie.returncode == 127:
+            raise Exception("Dafny not found: %s" % boogie_cli)
+
+        elif boogie.returncode != 0 and boogie.returncode != 4:
+            if "Out of memory" not in boogie.stderr and\
+               "System.OutOfMemoryException" not in boogie.stderr and \
+               "No usable version of libssl was found" not in boogie.stderr:
+                self.statistic.verifier_success_calls += 1
+                self.statistic.crashes += 1
+                path = self.report(script, transformer, "compile_error", boogie)
+                log_segfault_trigger(self.args, path, self.iteration)
+                return True, "dafny compile_error"
+            else:
+                return False, "dafny out of memory"
+            
+        self.statistic.verifier_success_calls += 1
+        result = boogie.get_result()
+        if result == ERR_COMPILATION:
+            path = self.report(script, transformer, "compilation_error", boogie)
+            log_segfault_trigger(self.args, path, self.iteration)
+            return True, "dafny compilation_error"
+        if not solver.result.equals(result):
+            self.statistic.soundness += 1
+            path = self.report_diff(script,transformer,"incorrect",solver,boogie)
             log_soundness_trigger(self.args, self.iteration, path)
             return False, "dafny incorrect"
             

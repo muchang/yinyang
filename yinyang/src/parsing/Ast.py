@@ -281,7 +281,7 @@ class DefineFun:
             "(define-fun "
             + self.symbol
             + " ("
-            + self.sorted_vars
+            + str(self.sorted_vars)
             + ") "
             + str(self.sort)
             + " "

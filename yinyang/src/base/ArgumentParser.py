@@ -137,7 +137,7 @@ def add_dafnyfuzz_args(parser, rootpath, current_dir):
     parser.add_argument(
         "-vars",
         "--variables-limit",
-        default=5000,
+        default=50000,
         metavar="num_vars",
         type=int
     )

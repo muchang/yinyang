@@ -25,6 +25,7 @@ from argparse import Namespace
 from abc import ABC, abstractmethod
 from yinyang.src.parsing.Types import BOOLEAN_TYPE, REAL_TYPE, INTEGER_TYPE
 from yinyang.src.parsing.Typechecker import typecheck_expr
+import yinyang.src.transformers.Util as Utils
 
 
 from yinyang.src.parsing.Types import (
@@ -42,6 +43,9 @@ class TmpID:
 
     def increase(self):
         self.num += 1
+        while self.num in Utils.id:
+            self.num += 1
+        Utils.id.append(self.num)
 
 class Context(ABC):
 
@@ -50,15 +54,18 @@ class Context(ABC):
             self.free_vars = {}
             self.let_vars = {}
             self.defined_vars = {}
+            self.var_decl = []
         else:
             self.free_vars = context.free_vars
             self.let_vars = context.let_vars
             self.defined_vars = context.defined_vars
+            self.var_decl = context.var_decl
     
     def add_context(self, context: 'Context'):
         self.free_vars.update(context.free_vars)
         self.let_vars.update(context.let_vars)
         self.defined_vars.update(context.defined_vars)
+        self.var_decl.extend(context.var_decl)
 
     def get_free_vars_from(self, smt_variables):
         for var in smt_variables:
@@ -735,7 +742,7 @@ class Transformer(CodeBlock):
             if assertion[2] == "bool":
                 self.statements.append(self.stmt_init_bool(assertion[0], assertion[1].identifier))
             else:    
-                self.statements.append(self.stmt_init_var(assertion[0], assertion[1].identifier, self.expression.ttype))
+                self.statements.append(self.stmt_init_var(assertion[0], assertion[1].identifier, assertion[1].expression.ttype))
         
         self.statements.extend(formula.statements)
         self.statements.append(self.stmt_assert(self.stmt_negation("oracle")))

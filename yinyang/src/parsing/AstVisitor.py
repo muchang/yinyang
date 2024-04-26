@@ -156,8 +156,7 @@ class AstVisitor(SMTLIBv2Visitor):
                 sorted_vars.append(f"({symbol} {sort})")
                 local_vars[symbol] = sort2type(sort)
             identifier = self.visitSymbol(ctx.function_def().symbol())
-            sorted_vars = " ".join(sorted_vars)
-            self.add_to_globals(identifier, input_sorts, output_sort)
+            self.add_to_globals(identifier, sorted_vars, self.visitSort(ctx.function_def().sort()))
             self.add_to_defines(
                 identifier, sorted_vars,
                 self.visitSort(ctx.function_def().sort()),
